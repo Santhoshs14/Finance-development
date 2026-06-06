@@ -81,106 +81,102 @@ function TransactionTable({
 
   return (
     <div className="overflow-hidden rounded-lg border border-border">
-      {/* Sticky header */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-muted/30 sticky top-0 z-10">
-            <tr className="border-b border-border text-muted-foreground">
-              {selectable && (
-                <th className="py-3 px-2 w-10">
-                  <input type="checkbox" checked={allSelected} onChange={() => onToggleSelectAll?.(transactions)} className="w-4 h-4 rounded cursor-pointer accent-brand" />
-                </th>
-              )}
-              <th className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider w-[100px]">Date</th>
-              <th className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Category</th>
-              <th className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Payment</th>
-              <th className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Account</th>
-              <th className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider">Notes</th>
-              <th className="text-right py-3 px-4 text-[11px] font-semibold uppercase tracking-wider w-[120px]">Amount</th>
-              <th className="text-right py-3 px-4 text-[11px] font-semibold uppercase tracking-wider w-[100px]">Actions</th>
-            </tr>
-          </thead>
-        </table>
-      </div>
-
-      {/* Virtualized body */}
       <div ref={parentRef} className="overflow-auto" style={{ maxHeight }}>
-        <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
-          {virtualizer.getVirtualItems().map((virtualRow) => {
-            const txn = transactions[virtualRow.index];
-            const catColor = resolveCatColor(txn.category, categories);
-            const isTransfer = txn.payment_type === "Self Transfer" || txn.category === "Transfer";
-            const isChecked = selectedIds.has(txn.id);
-            const linkedAccount = allAccounts.find((a) => a.id === txn.account_id);
-            const isCreditCard = linkedAccount && creditCards.some((c) => c.id === linkedAccount.id);
-
-            return (
-              <div
-                key={txn.id}
-                data-index={virtualRow.index}
-                ref={virtualizer.measureElement}
-                className={cn(
-                  "absolute left-0 w-full flex items-center border-b border-border/50 transition-colors hover:bg-muted/30",
-                  isChecked && "bg-brand/5"
-                )}
-                style={{ top: `${virtualRow.start}px`, height: `${ROW_HEIGHT}px` }}
-              >
-                {selectable && (
-                  <div className="py-3 px-2 w-10 flex-shrink-0">
-                    <input type="checkbox" checked={isChecked} onChange={() => onToggleSelect?.(txn.id)} className="w-4 h-4 rounded cursor-pointer accent-brand" />
-                  </div>
-                )}
-                <div className="py-3 px-4 text-sm whitespace-nowrap text-foreground/80 w-[100px] flex-shrink-0">
-                  {new Date(txn.date + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
-                </div>
-                <div className="py-3 px-4 flex-1 min-w-0">
-                  <div className="flex items-center flex-wrap gap-1.5">
-                    <span style={{ background: `${catColor}18`, color: catColor, borderColor: `${catColor}40` }} className="text-xs px-2.5 py-0.5 rounded-full font-medium border flex items-center gap-1.5">
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: catColor, display: "inline-block", flexShrink: 0 }} />
-                      {txn.category}
-                    </span>
-                    {txn.is_recurring && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-brand/50 text-brand uppercase font-bold tracking-wider">↻</span>
-                    )}
-                  </div>
-                </div>
-                <div className="py-3 px-4 w-[110px] flex-shrink-0">
-                  {txn.payment_type ? (
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap", paymentColors[txn.payment_type] || "bg-muted text-muted-foreground")}>
-                      {paymentIcons[txn.payment_type] || "💰"} {txn.payment_type}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </div>
-                <div className="py-3 px-4 w-[120px] flex-shrink-0">
-                  {linkedAccount ? (
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap truncate max-w-[110px] inline-block", isCreditCard ? "bg-accent/10 text-accent" : "bg-info/10 text-info")}>
-                      {isCreditCard ? "💳" : "🏦"} {linkedAccount.account_name}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </div>
-                <div className="py-3 px-4 flex-1 min-w-0">
-                  <span className="text-sm truncate block text-muted-foreground">{txn.notes || "—"}</span>
-                </div>
-                <div className={cn("py-3 px-4 text-sm text-right font-semibold whitespace-nowrap w-[120px] flex-shrink-0", isTransfer ? "text-info" : txn.amount < 0 ? "text-danger" : "text-success")}>
-                  {isTransfer ? (txn.amount < 0 ? "↗ " : "↘ ") : txn.amount < 0 ? "-" : "+"}₹{Math.abs(txn.amount).toLocaleString("en-IN")}
-                </div>
-                <div className="py-3 px-4 text-right w-[100px] flex-shrink-0">
-                  <div className="flex gap-1 justify-end">
-                    {onEdit && !isTransfer && txn.category !== "Credit Card Payment" && txn.category !== "Investment" && (
-                      <button onClick={() => onEdit(txn)} className="text-xs px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">Edit</button>
-                    )}
-                    {onDelete && (
-                      <button onClick={() => onDelete(txn.id)} className="text-xs px-2 py-1 rounded-md text-danger/70 hover:text-danger hover:bg-danger/10 transition-colors">Del</button>
-                    )}
-                  </div>
-                </div>
+        <div className="min-w-[900px]">
+          {/* Sticky header */}
+          <div className="sticky top-0 z-10 bg-card border-b border-border flex items-center text-muted-foreground">
+            {selectable && (
+              <div className="py-3 px-2 w-10 flex-shrink-0">
+                <input type="checkbox" checked={allSelected} onChange={() => onToggleSelectAll?.(transactions)} className="w-4 h-4 rounded cursor-pointer accent-brand" />
               </div>
-            );
-          })}
+            )}
+            <div className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider w-[100px] flex-shrink-0">Date</div>
+            <div className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider flex-1 min-w-[150px]">Category</div>
+            <div className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider w-[110px] flex-shrink-0">Payment</div>
+            <div className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider w-[120px] flex-shrink-0">Account</div>
+            <div className="text-left py-3 px-4 text-[11px] font-semibold uppercase tracking-wider flex-1 min-w-[150px]">Notes</div>
+            <div className="text-right py-3 px-4 text-[11px] font-semibold uppercase tracking-wider w-[120px] flex-shrink-0">Amount</div>
+            <div className="text-right py-3 px-4 text-[11px] font-semibold uppercase tracking-wider w-[100px] flex-shrink-0">Actions</div>
+          </div>
+
+          {/* Virtualized body */}
+          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const txn = transactions[virtualRow.index];
+              const catColor = resolveCatColor(txn.category, categories);
+              const isTransfer = txn.payment_type === "Self Transfer" || txn.category === "Transfer";
+              const isChecked = selectedIds.has(txn.id);
+              const linkedAccount = allAccounts.find((a) => a.id === txn.account_id);
+              const isCreditCard = linkedAccount && creditCards.some((c) => c.id === linkedAccount.id);
+
+              return (
+                <div
+                  key={txn.id}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  className={cn(
+                    "absolute left-0 w-full flex items-center border-b border-border/50 transition-colors hover:bg-muted/30",
+                    isChecked && "bg-brand/5"
+                  )}
+                  style={{ top: `${virtualRow.start}px`, height: `${ROW_HEIGHT}px` }}
+                >
+                  {selectable && (
+                    <div className="py-3 px-2 w-10 flex-shrink-0">
+                      <input type="checkbox" checked={isChecked} onChange={() => onToggleSelect?.(txn.id)} className="w-4 h-4 rounded cursor-pointer accent-brand" />
+                    </div>
+                  )}
+                  <div className="py-3 px-4 text-sm whitespace-nowrap text-foreground/80 w-[100px] flex-shrink-0">
+                    {new Date(txn.date + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+                  </div>
+                  <div className="py-3 px-4 flex-1 min-w-[150px]">
+                    <div className="flex items-center flex-wrap gap-1.5">
+                      <span style={{ background: `${catColor}18`, color: catColor, borderColor: `${catColor}40` }} className="text-xs px-2.5 py-0.5 rounded-full font-medium border flex items-center gap-1.5 truncate max-w-full">
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: catColor, display: "inline-block", flexShrink: 0 }} />
+                        <span className="truncate">{txn.category}</span>
+                      </span>
+                      {txn.is_recurring && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded border border-brand/50 text-brand uppercase font-bold tracking-wider flex-shrink-0">↻</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="py-3 px-4 w-[110px] flex-shrink-0">
+                    {txn.payment_type ? (
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap", paymentColors[txn.payment_type] || "bg-muted text-muted-foreground")}>
+                        {paymentIcons[txn.payment_type] || "💰"} {txn.payment_type}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </div>
+                  <div className="py-3 px-4 w-[120px] flex-shrink-0">
+                    {linkedAccount ? (
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap truncate max-w-full inline-block", isCreditCard ? "bg-accent/10 text-accent" : "bg-info/10 text-info")}>
+                        {isCreditCard ? "💳" : "🏦"} {linkedAccount.account_name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </div>
+                  <div className="py-3 px-4 flex-1 min-w-[150px]">
+                    <span className="text-sm truncate block text-muted-foreground">{txn.notes || "—"}</span>
+                  </div>
+                  <div className={cn("py-3 px-4 text-sm text-right font-semibold whitespace-nowrap w-[120px] flex-shrink-0", isTransfer ? "text-info" : txn.amount < 0 ? "text-danger" : "text-success")}>
+                    {isTransfer ? (txn.amount < 0 ? "↗ " : "↘ ") : txn.amount < 0 ? "-" : "+"}₹{Math.abs(txn.amount).toLocaleString("en-IN")}
+                  </div>
+                  <div className="py-3 px-4 text-right w-[100px] flex-shrink-0">
+                    <div className="flex gap-1 justify-end">
+                      {onEdit && !isTransfer && txn.category !== "Credit Card Payment" && txn.category !== "Investment" && (
+                        <button onClick={() => onEdit(txn)} className="text-xs px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">Edit</button>
+                      )}
+                      {onDelete && (
+                        <button onClick={() => onDelete(txn.id)} className="text-xs px-2 py-1 rounded-md text-danger/70 hover:text-danger hover:bg-danger/10 transition-colors">Del</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
