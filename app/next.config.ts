@@ -82,7 +82,7 @@ const cspProd = [
 
 const cspDev = cspProd
   .replace(
-    "script-src 'self' 'wasm-unsafe-eval'",
+    "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'"
   )
   .replace("upgrade-insecure-requests", "");
