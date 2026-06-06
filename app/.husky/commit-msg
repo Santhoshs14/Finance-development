@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Husky v9 hook — enforce Conventional Commits via commitlint.
+cd "$(dirname -- "$0")/.." || exit 1
+npx --no-install commitlint --edit "$1"

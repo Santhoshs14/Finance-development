@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ───────────────────────────────────────────────────────────
+    // Helpers
+    // ───────────────────────────────────────────────────────────
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      // Root user document
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+
+      // ── Transactions ─────────────────────────────────────────
+      match /transactions/{transactionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.amount is number
+          && request.resource.data.date is string
+          && request.resource.data.category is string
+          && request.resource.data.keys().hasAll(['amount', 'date', 'category']);
+        allow update: if isOwner(userId)
+          && (!('amount' in request.resource.data) || request.resource.data.amount is number);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── Accounts ─────────────────────────────────────────────
+      match /accounts/{accountId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.account_name is string
+          && request.resource.data.account_name.size() > 0
+          && request.resource.data.account_name.size() <= 100
+          && request.resource.data.type in ['bank', 'wallet', 'cash', 'credit'];
+        allow update, delete: if isOwner(userId);
+      }
+
+      // ── Categories ───────────────────────────────────────────
+      match /categories/{categoryId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 50
+          && request.resource.data.type in ['income', 'expense'];
+        allow update, delete: if isOwner(userId);
+      }
+
+      // ── Aggregates ───────────────────────────────────────────
+      match /aggregates/{cycleKey} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId)
+          && (!('totalSpent' in request.resource.data) || request.resource.data.totalSpent is number)
+          && (!('totalIncome' in request.resource.data) || request.resource.data.totalIncome is number);
+      }
+
+      // ── Budget Snapshots ─────────────────────────────────────
+      match /budgetSnapshots/{cycleKey}/categories/{categoryId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Goals, Investments, Lending, EMIs, Recurring, Splits, Notifications,
+      //    Net Worth Snapshots, FCM Tokens, NAV history ─────────────
+      match /goals/{id} { allow read, write: if isOwner(userId); }
+      match /investments/{id} { allow read, write: if isOwner(userId); }
+      match /mutualFunds/{id} { allow read, write: if isOwner(userId); }
+      match /lending/{id} { allow read, write: if isOwner(userId); }
+      match /emis/{id} { allow read, write: if isOwner(userId); }
+      match /recurring/{id} { allow read, write: if isOwner(userId); }
+      match /splits/{id} { allow read, write: if isOwner(userId); }
+      match /notifications/{id} { allow read, write: if isOwner(userId); }
+      match /netWorthSnapshots/{id} { allow read, write: if isOwner(userId); }
+      match /fcmTokens/{tokenHash} { allow read, write: if isOwner(userId); }
+      match /navHistory/{path=**} { allow read: if isOwner(userId); }
+      match /profile/{document=**} { allow read, write: if isOwner(userId); }
+
+      // ── Audit log — read-only from client (Admin SDK writes only) ──
+      match /audit/{id} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      // ── Passkeys — locked. Only Admin SDK may write. ──
+      match /passkeys/{credentialId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      // ── Security state (WebAuthn challenge etc.) — Admin SDK only ──
+      match /security/{document=**} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      // ── Catch-all for any new subcollection we haven't named yet ──
+      match /{subcollection}/{documentId=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // System collections (NAV index, gold prices) — read by all
+    // authenticated users, written only by Admin SDK.
+    // ───────────────────────────────────────────────────────────
+    match /system/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

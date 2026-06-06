@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Disallow API routes and auth pages
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /onboarding
+Disallow: /settings
+
+# Sitemap (update with your actual domain)
+# Sitemap: https://yourdomain.com/sitemap.xml

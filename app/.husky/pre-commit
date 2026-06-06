@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Husky v9 hook — runs lint-staged on the staged files in app/.
+cd "$(dirname -- "$0")/.." || exit 1
+npx lint-staged

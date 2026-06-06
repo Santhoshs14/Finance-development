@@ -1,0 +1,184 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ────────────────────────────────────────────────────────────────
+  # 1. Unit + component tests (Vitest) — fast, runs on every PR
+  # ────────────────────────────────────────────────────────────────
+  unit-and-component:
+    name: Unit & Component Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Run Vitest with coverage
+        run: npm run test:run -- --coverage
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ci_dummy_key
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ci-dummy.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-dummy-project
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ci-dummy.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000'
+          NEXT_PUBLIC_FIREBASE_APP_ID: '1:000:web:0000'
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: app/coverage/
+          retention-days: 14
+
+      - name: Build (verify production build succeeds)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ci_dummy_key
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ci-dummy.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-dummy-project
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ci-dummy.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000'
+          NEXT_PUBLIC_FIREBASE_APP_ID: '1:000:web:0000'
+          FIREBASE_PROJECT_ID: ci-dummy-project
+          FIREBASE_CLIENT_EMAIL: ci-dummy@ci-dummy-project.iam.gserviceaccount.com
+          FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAk0+v/dummy/key/for/ci/build/only\n-----END PRIVATE KEY-----\n"
+          NEXT_TELEMETRY_DISABLED: '1'
+
+  # ────────────────────────────────────────────────────────────────
+  # 2. Integration tests against Firebase emulator
+  # ────────────────────────────────────────────────────────────────
+  integration:
+    name: Integration (Firebase Emulator)
+    runs-on: ubuntu-latest
+    needs: unit-and-component
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Setup Java (required by Firebase emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Firebase tools
+        run: npm install -g firebase-tools
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration + Firestore rules tests
+        run: |
+          firebase emulators:exec --only firestore,auth \
+            --project ci-dummy-project \
+            "npm run test:int"
+        env:
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-dummy-project
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
+          FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+
+  # ────────────────────────────────────────────────────────────────
+  # 3. End-to-end + accessibility + Lighthouse CI
+  # ────────────────────────────────────────────────────────────────
+  e2e-and-lighthouse:
+    name: E2E + A11y + Lighthouse
+    runs-on: ubuntu-latest
+    needs: unit-and-component
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Build production bundle
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ci_dummy_key
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ci-dummy.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-dummy-project
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ci-dummy.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000'
+          NEXT_PUBLIC_FIREBASE_APP_ID: '1:000:web:0000'
+          DEV_AUTH_BYPASS: 'true'
+          FIREBASE_PROJECT_ID: ci-dummy-project
+          FIREBASE_CLIENT_EMAIL: ci-dummy@ci-dummy-project.iam.gserviceaccount.com
+          FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAk0+v/dummy/key/for/ci/build/only\n-----END PRIVATE KEY-----\n"
+          NEXT_TELEMETRY_DISABLED: '1'
+
+      - name: Run Playwright tests (E2E + axe a11y)
+        run: npx playwright test
+        env:
+          DEV_AUTH_BYPASS: 'true'
+
+      - name: Upload Playwright report on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: app/playwright-report/
+          retention-days: 14
+
+      - name: Run Lighthouse CI
+        run: npx lhci autorun
+        continue-on-error: true
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Upload Lighthouse artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: app/.lighthouseci/
+          retention-days: 14

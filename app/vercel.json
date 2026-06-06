@@ -1,0 +1,28 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/recurring",
+      "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/cron/aggregate-rollup",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/anomaly-scan",
+      "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/fetch-nav",
+      "schedule": "30 16 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-gold",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/net-worth-snapshot",
+      "schedule": "0 18 1 * *"
+    }
+  ]
+}
