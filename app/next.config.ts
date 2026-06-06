@@ -66,7 +66,7 @@ const withPWA = withPWAInit({
  */
 const cspProd = [
   "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval' https://*.firebaseapp.com https://*.googleapis.com https://www.gstatic.com https://apis.google.com https://accounts.google.com https://*.vercel-insights.com https://*.vercel-scripts.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://*.firebaseapp.com https://*.googleapis.com https://www.gstatic.com https://apis.google.com https://accounts.google.com https://*.vercel-insights.com https://*.vercel-scripts.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com https://www.gstatic.com",
   "font-src 'self' data:",
