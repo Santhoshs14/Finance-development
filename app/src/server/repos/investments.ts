@@ -42,7 +42,7 @@ export async function createInvestment(
   uid: string,
   input: CreateInvestmentInput
 ): Promise<string> {
-  const ref = await adminDb.collection(`users/${uid}/investments`).add({
+  const data: Record<string, unknown> = {
     name: input.name,
     investment_type: input.investment_type,
     buy_price: input.buy_price,
@@ -54,7 +54,15 @@ export async function createInvestment(
     linked_goal_id: input.linked_goal_id ?? null,
     account_id: input.account_id ?? null,
     createdAt: FieldValue.serverTimestamp(),
-  });
+  };
+  // Gold-specific fields
+  if (input.purity != null) data.purity = input.purity;
+  if (input.form) data.form = input.form;
+  if (input.weight_grams != null) data.weight_grams = input.weight_grams;
+  if (input.making_charges != null) data.making_charges = input.making_charges;
+  if (input.purchase_date) data.purchase_date = input.purchase_date;
+
+  const ref = await adminDb.collection(`users/${uid}/investments`).add(data);
   return ref.id;
 }
 

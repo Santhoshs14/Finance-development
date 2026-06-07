@@ -72,6 +72,12 @@ export async function POST(req: NextRequest) {
   if (body.needs_allocation != null) data.needs_allocation = !!body.needs_allocation;
   if (body.scheme_code) data.scheme_code = body.scheme_code;
   if (body.fund_house) data.fund_house = body.fund_house;
+  // Gold-specific fields
+  if (body.purity != null) data.purity = Number(body.purity);
+  if (body.form) data.form = body.form;
+  if (body.weight_grams != null) data.weight_grams = parseFloat(String(body.weight_grams));
+  if (body.making_charges != null) data.making_charges = parseFloat(String(body.making_charges));
+  if (body.purchase_date) data.purchase_date = body.purchase_date;
 
   const ref = await adminDb.collection(`users/${uid}/investments`).add(data);
   return NextResponse.json({ id: ref.id, message: "Investment created" }, { status: 201 });

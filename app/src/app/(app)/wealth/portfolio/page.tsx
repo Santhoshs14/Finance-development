@@ -9,13 +9,29 @@ import ChartCard from "@/components/ChartCard";
 import EmptyState from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useTheme } from "@/providers/ThemeProvider";
-import { TrendingUp, Plus, Pencil, Trash2, Filter, Link2, AlertTriangle } from "lucide-react";
+import { TrendingUp, Plus, Pencil, Trash2, Filter, Link2, AlertTriangle, Gem } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 const INVESTMENT_TYPES = ["Mutual Fund", "Equity", "Gold", "Bond", "FD", "PPF", "NPS", "ELSS", "ETF", "Other"];
 const PIE_COLORS = ["#1abf94", "#3b82f6", "#f59e0b", "#eab308", "#8b5cf6", "#6b7280"];
+
+/** Context-sensitive field labels based on investment type */
+const FIELD_LABELS: Record<string, { buyPrice: string; currentPrice: string; quantity: string; sipAmount: string; hideQuantity?: boolean }> = {
+  "Mutual Fund": { buyPrice: "NAV (per unit)", currentPrice: "Current NAV", quantity: "Units", sipAmount: "Monthly SIP" },
+  ELSS: { buyPrice: "NAV (per unit)", currentPrice: "Current NAV", quantity: "Units", sipAmount: "Monthly SIP" },
+  ETF: { buyPrice: "NAV (per unit)", currentPrice: "Current NAV", quantity: "Units", sipAmount: "Monthly SIP" },
+  Equity: { buyPrice: "Buy Price / share", currentPrice: "Current Price / share", quantity: "No. of Shares", sipAmount: "SIP Amount" },
+  FD: { buyPrice: "Invested Amount", currentPrice: "Current Value", quantity: "Quantity", sipAmount: "SIP Amount", hideQuantity: true },
+  PPF: { buyPrice: "Invested Amount", currentPrice: "Current Value", quantity: "Quantity", sipAmount: "SIP Amount", hideQuantity: true },
+  NPS: { buyPrice: "Invested Amount", currentPrice: "Current Value", quantity: "Quantity", sipAmount: "SIP Amount", hideQuantity: true },
+  Bond: { buyPrice: "Invested Amount", currentPrice: "Current Value", quantity: "Quantity", sipAmount: "SIP Amount", hideQuantity: true },
+  Other: { buyPrice: "Buy Price", currentPrice: "Current Price", quantity: "Quantity", sipAmount: "SIP Amount" },
+};
+const DEFAULT_LABELS = FIELD_LABELS.Other;
 
 export default function PortfolioPage() {
   const { investments, isLoading } = useInvestments();
@@ -23,11 +39,13 @@ export default function PortfolioPage() {
   const { accounts, transactions, categories } = useData();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const router = useRouter();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("All");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [txSearchQuery, setTxSearchQuery] = useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -109,18 +127,39 @@ export default function PortfolioPage() {
     setShowForm(false);
   };
 
+  // Derive field labels for current investment type
+  const labels = FIELD_LABELS[form.investment_type] || DEFAULT_LABELS;
+  const isGoldType = form.investment_type === "Gold";
+  const isFixedType = labels.hideQuantity;
+
+  // Filtered linkable transactions for search
+  const filteredLinkableTransactions = useMemo(() => {
+    if (!txSearchQuery.trim()) return linkableTransactions;
+    const q = txSearchQuery.toLowerCase();
+    return linkableTransactions.filter((t) =>
+      `${t.date} ${Math.abs(t.amount)} ${t.notes || ""} ${t.category}`.toLowerCase().includes(q)
+    );
+  }, [linkableTransactions, txSearchQuery]);
+
   const handleSubmit = () => {
+    const trimmedName = form.name.trim();
+    if (!trimmedName) {
+      toast.error("Investment name is required");
+      return;
+    }
+
+    const qty = isFixedType ? 1 : parseFloat(form.quantity) || 1;
+
     const payload: Record<string, unknown> = {
-      name: form.name.trim(),
+      name: trimmedName,
       investment_type: form.investment_type,
       buy_price: parseFloat(form.buy_price) || 0,
       current_price: parseFloat(form.current_price) || 0,
-      quantity: parseFloat(form.quantity) || 1,
+      quantity: qty,
       sip_amount: parseFloat(form.sip_amount) || 0,
       account_id: form.account_id || null,
       linked_transaction_id: form.linked_transaction_id || null,
     };
-    if (!payload.name) return;
 
     // If editing a needs_allocation investment and user provided proper NAV/qty, clear the flag
     if (editingId && isNeedsAllocation) {
@@ -283,28 +322,60 @@ export default function PortfolioPage() {
                 )}
               </div>
             )}
+            {/* Gold type → redirect to gold page */}
+            {isGoldType && (
+              <div className="p-3 rounded-xl border border-amber-400/40 bg-amber-50 dark:bg-amber-950/20 flex items-center gap-3">
+                <Gem className="w-5 h-5 text-amber-500 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[13px] font-medium text-amber-700 dark:text-amber-400">Use the Gold Tracker for gold investments</p>
+                  <p className="text-[11px] text-amber-600/80 dark:text-amber-400/60 mt-0.5">The Gold page has purity, weight, and form-specific fields.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/wealth/gold")}
+                  className="px-3 py-1.5 rounded-lg bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 text-xs font-semibold hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors whitespace-nowrap"
+                >
+                  Go to Gold
+                </button>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <input className={inputClass} placeholder="Name (e.g. NIFTY 50 ETF)" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               <select className={selectClass} value={form.investment_type} onChange={(e) => setForm({ ...form, investment_type: e.target.value })}>
                 {INVESTMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
-              <input className={inputClass} type="number" placeholder="Buy Price" value={form.buy_price} onChange={(e) => setForm({ ...form, buy_price: e.target.value })} />
-              <input className={inputClass} type="number" placeholder="Current Price" value={form.current_price} onChange={(e) => setForm({ ...form, current_price: e.target.value })} />
-              <input className={inputClass} type="number" placeholder="Quantity" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
-              <input className={inputClass} type="number" placeholder="SIP Amount (optional)" value={form.sip_amount} onChange={(e) => setForm({ ...form, sip_amount: e.target.value })} />
+              {!isGoldType && (
+                <>
+                  <input className={inputClass} type="number" placeholder={labels.buyPrice} value={form.buy_price} onChange={(e) => setForm({ ...form, buy_price: e.target.value })} />
+                  <input className={inputClass} type="number" placeholder={labels.currentPrice} value={form.current_price} onChange={(e) => setForm({ ...form, current_price: e.target.value })} />
+                  {!isFixedType && (
+                    <input className={inputClass} type="number" placeholder={labels.quantity} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+                  )}
+                  <input className={inputClass} type="number" placeholder={`${labels.sipAmount} (optional)`} value={form.sip_amount} onChange={(e) => setForm({ ...form, sip_amount: e.target.value })} />
+                </>
+              )}
               <select className={selectClass} value={form.account_id} onChange={(e) => setForm({ ...form, account_id: e.target.value })}>
                 <option value="">Link Account (optional)</option>
                 {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_name}</option>)}
               </select>
               {linkableTransactions.length > 0 && (
-                <select className={selectClass} value={form.linked_transaction_id} onChange={(e) => setForm({ ...form, linked_transaction_id: e.target.value })}>
-                  <option value="">Link Transaction (optional)</option>
-                  {linkableTransactions.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.date} — ₹{Math.abs(t.amount).toLocaleString("en-IN")} {t.notes || t.category}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-1.5">
+                  <input
+                    className={inputClass}
+                    type="text"
+                    placeholder="Search transactions…"
+                    value={txSearchQuery}
+                    onChange={(e) => setTxSearchQuery(e.target.value)}
+                  />
+                  <select className={selectClass} value={form.linked_transaction_id} onChange={(e) => setForm({ ...form, linked_transaction_id: e.target.value })}>
+                    <option value="">Link Transaction (optional)</option>
+                    {filteredLinkableTransactions.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.date} — ₹{Math.abs(t.amount).toLocaleString("en-IN")} {t.notes || t.category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
             <div className="flex gap-2">

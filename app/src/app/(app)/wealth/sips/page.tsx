@@ -1,23 +1,32 @@
 "use client";
 
-import { useMemo } from "react";
-import { useInvestments } from "@/hooks/useInvestments";
+import { useState, useMemo } from "react";
+import { useInvestments, useInvestmentMutations } from "@/hooks/useInvestments";
 import { calculateSIPGrowth } from "@/utils/calculations";
 import StatCard from "@/components/StatCard";
 import ChartCard from "@/components/ChartCard";
 import EmptyState from "@/components/EmptyState";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useTheme } from "@/providers/ThemeProvider";
-import { Repeat, TrendingUp } from "lucide-react";
+import { Repeat, TrendingUp, Pencil, Pause, Check, X, Plus } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 const PROJECTION_YEARS = [1, 3, 5, 10];
 const ASSUMED_RETURN = 12; // 12% annual return for SIP projection
 
 export default function SIPsPage() {
   const { investments, isLoading } = useInvestments();
+  const { updateInvestment } = useInvestmentMutations();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const router = useRouter();
+
+  const [editingSipId, setEditingSipId] = useState<string | null>(null);
+  const [editSipAmount, setEditSipAmount] = useState("");
+  const [stopSipId, setStopSipId] = useState<string | null>(null);
 
   const activeSIPs = useMemo(
     () => investments.filter((i) => (i.sip_amount || 0) > 0),
@@ -30,12 +39,12 @@ export default function SIPsPage() {
   );
 
   const totalSIPInvested = useMemo(
-    () => activeSIPs.reduce((sum, i) => sum + (i.buy_price * i.quantity || i.invested_amount || 0), 0),
+    () => activeSIPs.reduce((sum, i) => sum + ((i.buy_price * i.quantity) || i.invested_amount || 0), 0),
     [activeSIPs]
   );
 
   const totalSIPCurrent = useMemo(
-    () => activeSIPs.reduce((sum, i) => sum + (i.current_price * i.quantity || i.current_value || i.value || 0), 0),
+    () => activeSIPs.reduce((sum, i) => sum + ((i.current_price * i.quantity) || i.current_value || i.value || 0), 0),
     [activeSIPs]
   );
 
@@ -53,6 +62,29 @@ export default function SIPsPage() {
     });
   }, [monthlyOutflow]);
 
+  const handleEditSip = (sipId: string, currentAmount: number) => {
+    setEditingSipId(sipId);
+    setEditSipAmount(String(currentAmount));
+  };
+
+  const handleSaveSip = () => {
+    if (!editingSipId) return;
+    const amount = parseFloat(editSipAmount);
+    if (isNaN(amount) || amount < 0) {
+      toast.error("Enter a valid SIP amount");
+      return;
+    }
+    updateInvestment.mutate({ id: editingSipId, data: { sip_amount: amount } });
+    setEditingSipId(null);
+    setEditSipAmount("");
+  };
+
+  const handleStopSip = () => {
+    if (!stopSipId) return;
+    updateInvestment.mutate({ id: stopSipId, data: { sip_amount: 0 } });
+    setStopSipId(null);
+  };
+
   if (isLoading) {
     return <div className="animate-pulse space-y-4">{[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-2xl bg-muted" />)}</div>;
   }
@@ -63,9 +95,13 @@ export default function SIPsPage() {
         icon={Repeat}
         title="No active SIPs"
         description="Add a SIP amount to any investment in your Portfolio to track it here. SIPs help build wealth through disciplined investing."
+        actionLabel="Go to Portfolio"
+        onAction={() => router.push("/wealth/portfolio")}
       />
     );
   }
+
+  const inputClass = `w-full rounded-xl px-3 py-2 text-sm border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-brand/40`;
 
   return (
     <div className="space-y-6">
@@ -105,16 +141,25 @@ export default function SIPsPage() {
         </ChartCard>
       )}
 
-      {/* Active SIP Cards */}
-      <div className="space-y-1">
+      {/* Header + Add Button */}
+      <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-foreground px-1">Active SIPs ({activeSIPs.length})</h3>
+        <button
+          onClick={() => router.push("/wealth/portfolio")}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Add SIP
+        </button>
       </div>
+
+      {/* Active SIP Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {activeSIPs.map((sip, idx) => {
-          const invested = sip.buy_price * sip.quantity || sip.invested_amount || 0;
-          const current = sip.current_price * sip.quantity || sip.current_value || sip.value || 0;
+          const invested = (sip.buy_price * sip.quantity) || sip.invested_amount || 0;
+          const current = (sip.current_price * sip.quantity) || sip.current_value || sip.value || 0;
           const pl = current - invested;
           const plPct = invested > 0 ? (pl / invested) * 100 : 0;
+          const isEditing = editingSipId === sip.id;
 
           return (
             <motion.div
@@ -132,11 +177,74 @@ export default function SIPsPage() {
                     {sip.investment_type || "Equity"}
                   </span>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Monthly</p>
-                  <p className="text-sm font-bold text-brand">₹{(sip.sip_amount || 0).toLocaleString("en-IN")}</p>
+                <div className="flex items-center gap-1">
+                  {!isEditing && (
+                    <>
+                      <button
+                        onClick={() => handleEditSip(sip.id, sip.sip_amount || 0)}
+                        className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                        title="Edit SIP amount"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                      <button
+                        onClick={() => setStopSipId(sip.id)}
+                        className="p-1.5 rounded-lg hover:bg-danger/10 transition-colors"
+                        title="Stop SIP"
+                      >
+                        <Pause className="w-3.5 h-3.5 text-danger" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
+
+              {/* Inline SIP amount edit */}
+              <AnimatePresence mode="wait">
+                {isEditing ? (
+                  <motion.div
+                    key="edit"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-2 overflow-hidden"
+                  >
+                    <div className="flex-1">
+                      <label className="text-[11px] text-muted-foreground mb-1 block">Monthly SIP Amount (₹)</label>
+                      <input
+                        className={inputClass}
+                        type="number"
+                        min="0"
+                        value={editSipAmount}
+                        onChange={(e) => setEditSipAmount(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => { if (e.key === "Enter") handleSaveSip(); if (e.key === "Escape") setEditingSipId(null); }}
+                      />
+                    </div>
+                    <div className="flex gap-1 pt-4">
+                      <button
+                        onClick={handleSaveSip}
+                        className="p-2 rounded-lg bg-brand text-white hover:bg-brand/90 transition-colors"
+                        title="Save"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setEditingSipId(null)}
+                        className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div key="display" className="text-right">
+                    <p className="text-xs text-muted-foreground">Monthly SIP</p>
+                    <p className="text-sm font-bold text-brand">₹{(sip.sip_amount || 0).toLocaleString("en-IN")}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
@@ -173,6 +281,17 @@ export default function SIPsPage() {
           </p>
         </div>
       </div>
+
+      {/* Stop SIP Confirmation */}
+      <ConfirmDialog
+        open={!!stopSipId}
+        title="Stop SIP"
+        message="This will set the SIP amount to ₹0. The investment will remain in your portfolio but won't appear in active SIPs."
+        confirmLabel="Stop SIP"
+        onConfirm={handleStopSip}
+        onCancel={() => setStopSipId(null)}
+      />
     </div>
   );
 }
+

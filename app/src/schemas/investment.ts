@@ -13,6 +13,8 @@ export const investmentTypeSchema = z.enum([
   "Other",
 ]);
 
+export const goldFormSchema = z.enum(["digital", "physical", "sgb", "etf"]);
+
 export const createInvestmentSchema = z.object({
   name: z.string().min(1).max(150),
   investment_type: investmentTypeSchema.default("Equity"),
@@ -30,6 +32,12 @@ export const createInvestmentSchema = z.object({
   account_id: z.string().max(128).optional().nullable(),
   linked_transaction_id: z.string().max(128).optional().nullable(),
   needs_allocation: z.boolean().optional(),
+  // Gold-specific fields
+  purity: z.number().optional(),
+  form: goldFormSchema.optional(),
+  weight_grams: moneyInputSchema.optional(),
+  making_charges: moneyInputSchema.optional(),
+  purchase_date: z.string().optional(),
 });
 
 export type CreateInvestmentInput = z.infer<typeof createInvestmentSchema>;
@@ -58,6 +66,15 @@ export const investmentDocSchema = z.object({
   needs_allocation: z.boolean().optional(),
   createdAt: z.string().or(z.date()).optional(),
   _source: z.string().optional(),
+  // Gold-specific fields
+  purity: z.number().optional(),
+  form: goldFormSchema.optional(),
+  weight_grams: z.number().optional(),
+  making_charges: z.number().optional(),
+  purchase_date: z.string().optional(),
+  // Computed/alternative value fields used by UI
+  invested_amount: z.number().optional(),
+  current_value: z.number().optional(),
 });
 
 export type InvestmentDoc = z.infer<typeof investmentDocSchema>;

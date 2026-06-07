@@ -17,8 +17,9 @@ export async function PATCH(
     "name", "investment_type", "buy_price", "current_price", "quantity",
     "sip_amount", "account_id", "linked_transaction_id", "linked_goal_id",
     "needs_allocation", "scheme_code", "fund_house",
+    "purity", "form", "weight_grams", "making_charges", "purchase_date",
   ];
-  const numericFields = new Set(["buy_price", "current_price", "quantity", "sip_amount"]);
+  const numericFields = new Set(["buy_price", "current_price", "quantity", "sip_amount", "weight_grams", "making_charges", "purity"]);
   const updates: Record<string, unknown> = {};
   for (const key of allowedFields) {
     if (body[key] !== undefined) {
