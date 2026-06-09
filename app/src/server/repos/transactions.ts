@@ -275,13 +275,100 @@ export async function importTransactions(
   return { imported, skipped };
 }
 
+import { recalcAccount } from "./accounts";
+import { recalcAggregate } from "./aggregates";
+
 export async function updateTransaction(
   uid: string,
   txId: string,
   patch: UpdateTransactionInput
 ): Promise<void> {
   const ref = adminDb.doc(`users/${uid}/transactions/${txId}`);
+  const snap = await ref.get();
+  if (!snap.exists) return;
+  const oldData = snap.data() as TransactionDoc;
+
+  if (patch.category && !patch.type) {
+    if (patch.category === "Income") patch.type = "income";
+    else if (oldData.type === "income") patch.type = "expense";
+  }
+
   await ref.set({ ...patch, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const newData = { ...oldData, ...patch } as TransactionDoc;
+
+  // Use atomic increments for balance and aggregate updates instead of recalcAccount
+  // to perfectly preserve any initial balances a user might have
+  await adminDb.runTransaction(async (transaction) => {
+    // 1. Revert old amounts
+    if (oldData.account_id) {
+      const accRef = adminDb.doc(`users/${uid}/accounts/${oldData.account_id}`);
+      const accSnap = await transaction.get(accRef);
+      if (accSnap.exists) {
+        const type = (accSnap.data()?.type as string) || "bank";
+        const amt = Math.abs(oldData.amount ?? 0);
+        if (type === "credit") {
+          transaction.update(accRef, {
+            liability: FieldValue.increment(oldData.type === "expense" ? -amt : amt)
+          });
+        } else {
+          transaction.update(accRef, {
+            balance: FieldValue.increment(oldData.type === "expense" ? amt : -amt)
+          });
+        }
+      }
+    }
+    
+    if (oldData.cycleKey) {
+      const aggRef = adminDb.doc(`users/${uid}/aggregates/${oldData.cycleKey}`);
+      const amt = Math.abs(oldData.amount ?? 0);
+      const aggUpdate: Record<string, unknown> = {
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      if (oldData.type === "expense") {
+        aggUpdate.totalSpent = FieldValue.increment(-amt);
+        aggUpdate[`categoryBreakdown.${oldData.category}`] = FieldValue.increment(-amt);
+      } else {
+        aggUpdate.totalIncome = FieldValue.increment(-amt);
+        aggUpdate[`categoryBreakdown.Income`] = FieldValue.increment(-amt);
+      }
+      transaction.set(aggRef, aggUpdate, { merge: true });
+    }
+
+    // 2. Apply new amounts
+    if (newData.account_id) {
+      const accRef = adminDb.doc(`users/${uid}/accounts/${newData.account_id}`);
+      const accSnap = await transaction.get(accRef);
+      if (accSnap.exists) {
+        const type = (accSnap.data()?.type as string) || "bank";
+        const amt = Math.abs(newData.amount ?? 0);
+        if (type === "credit") {
+          transaction.update(accRef, {
+            liability: FieldValue.increment(newData.type === "expense" ? amt : -amt)
+          });
+        } else {
+          transaction.update(accRef, {
+            balance: FieldValue.increment(newData.type === "expense" ? -amt : amt)
+          });
+        }
+      }
+    }
+    
+    if (newData.cycleKey) {
+      const aggRef = adminDb.doc(`users/${uid}/aggregates/${newData.cycleKey}`);
+      const amt = Math.abs(newData.amount ?? 0);
+      const aggUpdate: Record<string, unknown> = {
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      if (newData.type === "expense") {
+        aggUpdate.totalSpent = FieldValue.increment(amt);
+        aggUpdate[`categoryBreakdown.${newData.category}`] = FieldValue.increment(amt);
+      } else {
+        aggUpdate.totalIncome = FieldValue.increment(amt);
+        aggUpdate[`categoryBreakdown.Income`] = FieldValue.increment(amt);
+      }
+      transaction.set(aggRef, aggUpdate, { merge: true });
+    }
+  });
 }
 
 export async function deleteTransaction(uid: string, txId: string): Promise<void> {

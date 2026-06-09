@@ -456,7 +456,13 @@ export default function PortfolioPage() {
         title="Delete Investment"
         message="This will permanently remove this investment from your portfolio."
         confirmLabel="Delete"
-        onConfirm={() => { if (deleteId) deleteInvestment.mutate(deleteId); setDeleteId(null); }}
+        onConfirm={() => { 
+          if (deleteId) {
+            deleteInvestment.mutate(deleteId);
+            if (deleteId === editingId) resetForm();
+          }
+          setDeleteId(null); 
+        }}
         onCancel={() => setDeleteId(null)}
       />
     </div>

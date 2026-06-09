@@ -382,7 +382,13 @@ export default function GoldPage() {
         title="Delete Gold Holding"
         message="This will permanently remove this gold holding from your portfolio."
         confirmLabel="Delete"
-        onConfirm={() => { if (deleteId) deleteInvestment.mutate(deleteId); setDeleteId(null); }}
+        onConfirm={() => { 
+          if (deleteId) {
+            deleteInvestment.mutate(deleteId);
+            if (deleteId === editingId) resetForm();
+          }
+          setDeleteId(null); 
+        }}
         onCancel={() => setDeleteId(null)}
       />
     </div>
