@@ -37,8 +37,14 @@ export async function PATCH(
 
   updates["updatedAt"] = FieldValue.serverTimestamp();
 
-  const docRef = adminDb.doc(`users/${uid}/investments/${id}`);
-  const doc = await docRef.get();
+  let docRef = adminDb.doc(`users/${uid}/investments/${id}`);
+  let doc = await docRef.get();
+  
+  if (!doc.exists) {
+    docRef = adminDb.doc(`users/${uid}/mutualFunds/${id}`);
+    doc = await docRef.get();
+  }
+
   if (!doc.exists) {
     return NextResponse.json({ error: "Investment not found" }, { status: 404 });
   }
@@ -56,8 +62,14 @@ export async function DELETE(
   const { uid } = auth;
   const { id } = await params;
 
-  const docRef = adminDb.doc(`users/${uid}/investments/${id}`);
-  const doc = await docRef.get();
+  let docRef = adminDb.doc(`users/${uid}/investments/${id}`);
+  let doc = await docRef.get();
+  
+  if (!doc.exists) {
+    docRef = adminDb.doc(`users/${uid}/mutualFunds/${id}`);
+    doc = await docRef.get();
+  }
+
   if (!doc.exists) {
     return NextResponse.json({ error: "Investment not found" }, { status: 404 });
   }
