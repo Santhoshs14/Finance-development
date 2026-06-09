@@ -8,17 +8,20 @@ import { getFinancialCycle } from "@/utils/financialMonth";
 import { fmt } from "@/utils/format";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, Button, Badge, Input } from "@/components/ui";
-import { Plus, Search, ArrowDownRight } from "lucide-react";
+import { Plus, Search, ArrowDownRight, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import QuickAddTransaction from "@/components/QuickAddTransaction";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function CCTransactionsPage() {
   const queryClient = useQueryClient();
   const { creditCards, transactions, categories, accounts, investments, cycleStartDay } = useData();
   const [selectedCard, setSelectedCard] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
+  const [editTxn, setEditTxn] = useState<Record<string, unknown> | null>(null);
   const [searchText, setSearchText] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const currentCycle = useMemo(() => getFinancialCycle(new Date(), cycleStartDay), [cycleStartDay]);
 
@@ -43,6 +46,32 @@ export default function CCTransactionsPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["transactions"] }); toast.success("CC transaction added!"); },
     onError: () => toast.error("Failed"),
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => transactionsAPI.update(id, data as Parameters<typeof transactionsAPI.update>[1]),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["transactions"] }); toast.success("Transaction updated!"); },
+    onError: () => toast.error("Failed to update"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => transactionsAPI.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["investments"] });
+      toast.success("Transaction deleted!");
+    },
+    onError: () => toast.error("Failed to delete"),
+  });
+
+  const handleSubmit = (data: unknown) => {
+    const d = data as Record<string, unknown>;
+    if (editTxn?.id) {
+      updateMutation.mutate({ id: editTxn.id as string, data: d });
+    } else {
+      addMutation.mutate(d);
+    }
+    setEditTxn(null);
+  };
 
   return (
     <div className="space-y-4">
@@ -97,7 +126,7 @@ export default function CCTransactionsPage() {
           {ccTransactions.length > 0 ? (
             <div className="divide-y divide-border">
               {ccTransactions.map((t) => (
-                <div key={t.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors">
+                <div key={t.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors group">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-danger/10 flex items-center justify-center">
                       <ArrowDownRight className="w-4 h-4 text-danger" />
@@ -107,7 +136,25 @@ export default function CCTransactionsPage() {
                       <p className="text-[11px] text-muted-foreground">{t.date} {t.notes ? `· ${t.notes}` : ""}</p>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-foreground">{fmt(Math.abs(t.amount))}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">{fmt(Math.abs(t.amount))}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => { setEditTxn(t as unknown as Record<string, unknown>); setShowAdd(true); }}
+                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        title="Edit transaction"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(t.id)}
+                        className="p-1.5 rounded-lg hover:bg-danger/10 text-muted-foreground hover:text-danger transition-colors"
+                        title="Delete transaction"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -122,15 +169,30 @@ export default function CCTransactionsPage() {
       {showAdd && (
         <QuickAddTransaction
           isOpen={showAdd}
-          onClose={() => setShowAdd(false)}
-          onSubmit={(data) => addMutation.mutate(data)}
+          onClose={() => { setShowAdd(false); setEditTxn(null); }}
+          onSubmit={handleSubmit}
           accounts={accounts}
           creditCards={creditCards}
           categories={categories}
           investments={investments}
+          initialData={editTxn}
           allowCreditCard={true}
+          creditCardOnly={true}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="Delete Transaction?"
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        confirmColor="danger"
+        onConfirm={() => {
+          if (confirmDeleteId) deleteMutation.mutate(confirmDeleteId);
+          setConfirmDeleteId(null);
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

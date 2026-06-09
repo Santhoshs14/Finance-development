@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { TrendPill } from "@/components/ui/TrendPill";
 import { CategoryDot } from "@/components/ui/CategoryDot";
@@ -7,18 +7,18 @@ import { Badge } from "@/components/ui/Badge";
 
 describe("AnimatedCounter", () => {
   it("renders the prefix and final value", () => {
-    render(<AnimatedCounter value={1000} prefix="₹" duration={0} />);
-    expect(screen.getByText(/₹/)).toBeInTheDocument();
+    const { getByText } = render(<AnimatedCounter value={1000} prefix="₹" duration={0} />);
+    expect(getByText(/₹/)).toBeInTheDocument();
   });
 
   it("compact mode adds Lakh suffix", () => {
-    render(<AnimatedCounter value={100000} compact duration={0} />);
-    expect(screen.getByText(/L/)).toBeInTheDocument();
+    const { getByText } = render(<AnimatedCounter value={100000} compact duration={0} />);
+    expect(getByText(/L/)).toBeInTheDocument();
   });
 
   it("negative value renders with minus sign", () => {
-    render(<AnimatedCounter value={-500} duration={0} />);
-    expect(screen.getByText(/-/)).toBeInTheDocument();
+    const { getByText } = render(<AnimatedCounter value={-500} duration={0} />);
+    expect(getByText(/-/)).toBeInTheDocument();
   });
 });
 
@@ -52,8 +52,8 @@ describe("CategoryDot", () => {
   });
 
   it("renders label", () => {
-    render(<CategoryDot label="FD" />);
-    expect(screen.getByText("FD")).toBeInTheDocument();
+    const { getByText } = render(<CategoryDot label="FD" />);
+    expect(getByText("FD")).toBeInTheDocument();
   });
 
   it("respects custom color via inline style", () => {

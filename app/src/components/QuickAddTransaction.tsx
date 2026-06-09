@@ -61,6 +61,7 @@ export interface QuickAddTransactionProps {
   investments?: InvestmentOption[];
   initialData?: Partial<TransactionData> & { id?: string } | null;
   allowCreditCard?: boolean;
+  creditCardOnly?: boolean;
 }
 
 function suggestCategory(notes: string, categoriesAvail: Category[]): string | null {
@@ -74,7 +75,7 @@ function suggestCategory(notes: string, categoriesAvail: Category[]): string | n
   return null;
 }
 
-export default function QuickAddTransaction({ isOpen, onClose, onSubmit, accounts = [], creditCards = [], categories = [], investments = [], initialData = null, allowCreditCard = false }: QuickAddTransactionProps) {
+export default function QuickAddTransaction({ isOpen, onClose, onSubmit, accounts = [], creditCards = [], categories = [], investments = [], initialData = null, allowCreditCard = false, creditCardOnly = false }: QuickAddTransactionProps) {
   const [form, setForm] = useState(defaultForm);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [creatingNewInvestment, setCreatingNewInvestment] = useState(false);
@@ -87,12 +88,13 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
   const INVESTMENT_TYPES = ["Mutual Fund", "Equity", "Gold", "Bond", "FD", "PPF", "NPS", "ELSS", "ETF", "Other"];
 
   useEffect(() => {
+    const defaultPaymentType = creditCardOnly ? "Credit Card" : "Cash";
     if (initialData) {
       setForm({
         date: initialData.date || defaultForm.date,
         amount: String(Math.abs(initialData.amount || 0)) || "",
         category: initialData.category || "Food",
-        payment_type: initialData.payment_type || "Cash",
+        payment_type: initialData.payment_type || defaultPaymentType,
         account_id: initialData.account_id || "",
         to_account_id: initialData.to_account_id || "",
         notes: initialData.notes || "",
@@ -101,12 +103,12 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
         linked_investment_id: initialData.linked_investment_id || "",
       });
     } else {
-      setForm(defaultForm);
+      setForm({ ...defaultForm, payment_type: defaultPaymentType });
     }
     setSuggestion(null);
     setCreatingNewInvestment(false);
     setNewInvForm({ name: "", investment_type: "Mutual Fund" });
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, creditCardOnly]);
 
   const handleNotesChange = (val: string) => {
     setForm((prev) => ({ ...prev, notes: val }));
@@ -193,7 +195,7 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
   const isEdit = !!initialData;
   const isTransfer = form.payment_type === "Self Transfer";
   const bankAccounts = accounts.filter((a) => a.credit_limit == null && !creditCards.some((c) => c.id === a.id));
-  const showCreditCardSelector = !isTransfer && form.payment_type === "Credit Card" && creditCards.length > 0;
+  const showCreditCardSelector = !isTransfer && (form.payment_type === "Credit Card" || creditCardOnly) && creditCards.length > 0;
   const showAccountSelector = !isTransfer && (form.payment_type === "Debit Card" || form.payment_type === "UPI") && bankAccounts.length > 0;
 
   // Check if the selected category is a productive/investment category
@@ -235,13 +237,17 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
             </div>
             <div>
               <label className="block text-[13px] font-medium text-muted-foreground mb-1">Payment Method</label>
-              <select value={form.payment_type} onChange={(e) => handlePaymentTypeChange(e.target.value)} className={selectClass}>
-                <option value="Cash">💵 Cash</option>
-                {allowCreditCard && <option value="Credit Card">💳 Credit Card</option>}
-                <option value="Debit Card">🏦 Debit Card</option>
-                <option value="UPI">📱 UPI</option>
-                <option value="Self Transfer">🔄 Self Transfer</option>
-              </select>
+              {creditCardOnly ? (
+                <div className="h-9 px-3 rounded-lg bg-muted text-muted-foreground text-sm flex items-center gap-1.5">💳 Credit Card</div>
+              ) : (
+                <select value={form.payment_type} onChange={(e) => handlePaymentTypeChange(e.target.value)} className={selectClass}>
+                  <option value="Cash">💵 Cash</option>
+                  {allowCreditCard && <option value="Credit Card">💳 Credit Card</option>}
+                  <option value="Debit Card">🏦 Debit Card</option>
+                  <option value="UPI">📱 UPI</option>
+                  <option value="Self Transfer">🔄 Self Transfer</option>
+                </select>
+              )}
             </div>
           </div>
 

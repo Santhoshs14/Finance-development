@@ -128,7 +128,7 @@ export default function TransactionsPage() {
 
   const deleteTxnMutation = useMutation({
     mutationFn: (id: string) => transactionsAPI.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["transactions"] }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["transactions"] }); queryClient.invalidateQueries({ queryKey: ["investments"] }); },
     onError: () => toast.error("Failed to delete"),
   });
 
