@@ -38,6 +38,11 @@ interface Account {
   liability?: number;
   credit_limit?: number;
   shared_limit_with?: string;
+  billing_cycle_start_day?: number;
+  due_days_after?: number;
+  reward_rate?: number;
+  point_value?: number;
+  reward_points_balance?: number;
 }
 
 interface FirestoreTimestampLike {

@@ -3,6 +3,7 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
+import { classifyAggregateTxn } from "@/utils/calculations";
 
 /**
  * POST /api/aggregates/recalculate
@@ -46,21 +47,21 @@ export async function POST(req: NextRequest) {
   let totalIncome = 0;
   let totalInvestmentSpend = 0;
   const categoryBreakdown: Record<string, number> = {};
-  const SKIP_CATEGORIES = new Set(["Transfer", "Credit Card Payment"]);
 
   snapshot.docs.forEach((doc) => {
     const data = doc.data();
     const amount = data.amount || 0;
     const category = data.category || "Uncategorized";
-    const paymentType = data.payment_type || "";
 
-    // Skip transfers and CC payments
-    if (SKIP_CATEGORIES.has(category) || paymentType === "Self Transfer" || paymentType === "Transfer") {
+    const cls = classifyAggregateTxn(data);
+    if (cls === "skip") {
       return;
     }
 
-    if (category === "Income" || amount > 0) {
-      totalIncome += Math.abs(amount);
+    if (cls === "income") {
+      const absAmount = Math.abs(amount);
+      totalIncome += absAmount;
+      categoryBreakdown.Income = (categoryBreakdown.Income || 0) + absAmount;
     } else {
       const absAmount = Math.abs(amount);
       totalSpent += absAmount;

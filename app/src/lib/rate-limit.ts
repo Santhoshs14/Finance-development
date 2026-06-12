@@ -5,6 +5,12 @@
  * `KV_REST_API_URL` + `KV_REST_API_TOKEN` are present at runtime, the
  * limiter automatically switches to KV for distributed rate-limiting
  * across edge regions / serverless invocations.
+ *
+ * ⚠️ PRODUCTION / SERVERLESS: the in-memory fallback is PER-INSTANCE and
+ * resets on cold start, so limits are effectively much weaker (each
+ * serverless invocation may have its own counter). For real enforcement on
+ * Vercel or any multi-instance host, set `KV_REST_API_URL` +
+ * `KV_REST_API_TOKEN` so all instances share one counter.
  */
 import { errors } from "@/lib/api-handler";
 

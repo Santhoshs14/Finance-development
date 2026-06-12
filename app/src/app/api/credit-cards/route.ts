@@ -39,6 +39,11 @@ export async function POST(req: NextRequest) {
   };
 
   if (shared_limit_with) data.shared_limit_with = shared_limit_with;
+  if (body.billing_cycle_start_day !== undefined) data.billing_cycle_start_day = parseInt(body.billing_cycle_start_day, 10);
+  if (body.due_days_after !== undefined) data.due_days_after = parseInt(body.due_days_after, 10);
+  if (body.reward_rate !== undefined) data.reward_rate = parseFloat(body.reward_rate);
+  if (body.point_value !== undefined) data.point_value = parseFloat(body.point_value);
+  if (body.reward_points_balance !== undefined) data.reward_points_balance = parseFloat(body.reward_points_balance);
 
   const ref = await adminDb.collection(`users/${uid}/accounts`).add(data);
   return NextResponse.json({ id: ref.id, message: "Credit card added" }, { status: 201 });

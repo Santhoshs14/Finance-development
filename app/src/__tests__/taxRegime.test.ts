@@ -70,6 +70,15 @@ describe("taxRegime — FY 2025-26", () => {
       expect(result.taxableIncome).toBe(925000); // 10L - 75k std
     });
 
+    it("applies employer NPS 80CCD(2) under new regime, capped at 14% of gross", () => {
+      const result = calculateTax(
+        { grossIncome: 1000000, employerNps80CCD2: 200000 },
+        "new"
+      );
+      // 10L - 75k std - min(200k, 14% of 10L = 140k) = 10L - 75k - 140k = 785k
+      expect(result.taxableIncome).toBe(785000);
+    });
+
     it("allows higher 80D for seniors", () => {
       const senior = calculateTax(
         { grossIncome: 1000000, deduction80D: 50000, senior: true },

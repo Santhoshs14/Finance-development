@@ -3,6 +3,7 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
+import { classifyAggregateTxn } from "@/utils/calculations";
 
 /**
  * POST /api/aggregates/recalculate-all
@@ -30,8 +31,6 @@ export async function POST(req: NextRequest) {
     .collection(`users/${uid}/transactions`)
     .get();
 
-  const SKIP_CATEGORIES = new Set(["Transfer", "Credit Card Payment"]);
-
   // Group by cycleKey
   const cycleData: Record<
     string,
@@ -58,15 +57,16 @@ export async function POST(req: NextRequest) {
 
     const amount = data.amount || 0;
     const category = data.category || "Uncategorized";
-    const paymentType = data.payment_type || "";
 
-    // Skip transfers and CC payments
-    if (SKIP_CATEGORIES.has(category) || paymentType === "Self Transfer" || paymentType === "Transfer") {
+    const cls = classifyAggregateTxn(data);
+    if (cls === "skip") {
       return;
     }
 
-    if (category === "Income" || amount > 0) {
-      agg.totalIncome += Math.abs(amount);
+    if (cls === "income") {
+      const absAmount = Math.abs(amount);
+      agg.totalIncome += absAmount;
+      agg.categoryBreakdown.Income = (agg.categoryBreakdown.Income || 0) + absAmount;
     } else {
       const absAmount = Math.abs(amount);
       agg.totalSpent += absAmount;

@@ -34,3 +34,24 @@ export const goalDocSchema = z.object({
 });
 
 export type GoalDoc = z.infer<typeof goalDocSchema>;
+
+/** A single contribution toward a goal (audit trail + forecast history). */
+export const createContributionSchema = z.object({
+  amount: moneyInputSchema.refine((n) => n !== 0, {
+    message: "amount must be non-zero",
+  }),
+  date: isoDateSchema.optional(),
+  note: z.string().max(200).optional(),
+});
+
+export type CreateContributionInput = z.infer<typeof createContributionSchema>;
+
+export const contributionDocSchema = z.object({
+  id: firestoreIdSchema,
+  amount: z.number(),
+  date: isoDateSchema,
+  note: z.string().optional(),
+  createdAt: z.string().or(z.date()).optional(),
+});
+
+export type ContributionDoc = z.infer<typeof contributionDocSchema>;

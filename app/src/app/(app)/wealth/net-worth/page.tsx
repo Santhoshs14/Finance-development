@@ -9,9 +9,11 @@ import {
   calculatePortfolioAllocation,
   calculateFinancialHealthScore,
   calculateSavingsRateFromAggregates,
+  healthRating,
 } from "@/utils/calculations";
 import StatCard from "@/components/StatCard";
 import ChartCard from "@/components/ChartCard";
+import { fmt } from "@/utils/format";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Wallet, TrendingUp, CreditCard, HandCoins, ShieldCheck } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -85,10 +87,8 @@ export default function NetWorthPage() {
     return <div className="animate-pulse space-y-4">{[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-2xl bg-muted" />)}</div>;
   }
 
-  const scoreColor =
-    healthScore >= 70 ? "#10b981" : healthScore >= 40 ? "#f59e0b" : "#ef4444";
-  const scoreLabel =
-    healthScore >= 70 ? "Excellent" : healthScore >= 40 ? "Good" : "Needs Work";
+  const scoreColor = healthRating(healthScore).color;
+  const scoreLabel = healthRating(healthScore).label;
 
   return (
     <div className="space-y-6">
@@ -101,7 +101,7 @@ export default function NetWorthPage() {
       >
         <p className="text-sm text-muted-foreground mb-2">Total Net Worth</p>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground">
-          ₹{netWorthData.net_worth.toLocaleString("en-IN")}
+          {fmt(netWorthData.net_worth)}
         </h2>
         <p className="text-xs text-muted-foreground mt-2">Assets − Liabilities</p>
       </motion.div>
@@ -214,13 +214,13 @@ export default function NetWorthPage() {
             <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
               <span className="text-xs text-muted-foreground">{item.label}</span>
               <span className={`text-sm font-semibold ${item.type === "liability" ? "text-red-500" : "text-foreground"}`}>
-                {item.type === "liability" ? "−" : "+"}₹{item.value.toLocaleString("en-IN")}
+                {item.type === "liability" ? "−" : "+"}{fmt(item.value)}
               </span>
             </div>
           ))}
           <div className="flex items-center justify-between pt-2 border-t border-border">
             <span className="text-sm font-bold text-foreground">Net Worth</span>
-            <span className="text-sm font-bold text-brand">₹{netWorthData.net_worth.toLocaleString("en-IN")}</span>
+            <span className="text-sm font-bold text-brand">{fmt(netWorthData.net_worth)}</span>
           </div>
         </div>
       </div>

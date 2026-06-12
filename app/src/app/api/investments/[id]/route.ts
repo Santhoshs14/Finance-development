@@ -37,16 +37,29 @@ export async function PATCH(
 
   updates["updatedAt"] = FieldValue.serverTimestamp();
 
+  let isLegacyFund = false;
   let docRef = adminDb.doc(`users/${uid}/investments/${id}`);
   let doc = await docRef.get();
-  
+
   if (!doc.exists) {
     docRef = adminDb.doc(`users/${uid}/mutualFunds/${id}`);
     doc = await docRef.get();
+    isLegacyFund = doc.exists;
   }
 
   if (!doc.exists) {
     return NextResponse.json({ error: "Investment not found" }, { status: 404 });
+  }
+
+  // Legacy `mutualFunds` docs are read with legacy field names taking priority
+  // (fund_name / average_nav / current_nav / units), so writing only the
+  // canonical fields would leave the UI showing stale values. Mirror canonical
+  // → legacy so edits actually surface in every reader.
+  if (isLegacyFund) {
+    if (updates.name !== undefined) updates.fund_name = updates.name;
+    if (updates.buy_price !== undefined) updates.average_nav = updates.buy_price;
+    if (updates.current_price !== undefined) updates.current_nav = updates.current_price;
+    if (updates.quantity !== undefined) updates.units = updates.quantity;
   }
 
   await docRef.update(updates);

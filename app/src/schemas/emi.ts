@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { firestoreIdSchema, isoDateSchema, moneyInputSchema } from "./common";
 
+export const emiStatusSchema = z.enum(["active", "completed", "closed"]);
+
 export const createEmiSchema = z.object({
   cardId: z.string().max(128).optional().nullable(),
   description: z.string().min(1).max(200),
@@ -14,6 +16,9 @@ export const createEmiSchema = z.object({
   monthsPaid: z.coerce.number().int().min(0).default(0),
   interestRate: z.coerce.number().min(0).max(100).default(0),
   startDate: isoDateSchema.optional(),
+  status: emiStatusSchema.optional(),
+  paidAmount: moneyInputSchema.optional(),
+  lastPaymentDate: isoDateSchema.optional(),
 });
 
 export type CreateEmiInput = z.infer<typeof createEmiSchema>;
@@ -36,6 +41,9 @@ export const emiDocSchema = z.object({
   monthsPaid: z.number().int(),
   interestRate: z.number(),
   startDate: isoDateSchema,
+  status: emiStatusSchema.optional(),
+  paidAmount: z.number().optional(),
+  lastPaymentDate: isoDateSchema.optional(),
   createdAt: z.string().or(z.date()).optional(),
 });
 

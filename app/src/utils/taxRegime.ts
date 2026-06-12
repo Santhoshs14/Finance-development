@@ -20,6 +20,8 @@ export interface TaxInputs {
   deductionOther?: number;
   /** HRA exemption (auto-computed if rent/HRA paid provided). */
   hraExemption?: number;
+  /** Employer NPS contribution under 80CCD(2) — the main new-regime deduction (cap 14% of salary). */
+  employerNps80CCD2?: number;
   /** Standard deduction — auto-applied per regime. */
   hasSalary?: boolean;
   /** Is the taxpayer a senior citizen (60-79)? */
@@ -132,6 +134,7 @@ export function calculateTax(inputs: TaxInputs, regime: "old" | "new"): TaxBreak
     deduction80CCD1B = 0,
     deductionOther = 0,
     hraExemption = 0,
+    employerNps80CCD2 = 0,
     hasSalary = true,
     senior = false,
     superSenior = false,
@@ -144,15 +147,15 @@ export function calculateTax(inputs: TaxInputs, regime: "old" | "new"): TaxBreak
   const cap80C = Math.min(deduction80C, 1_50_000);
   const cap80D = Math.min(deduction80D, senior || superSenior ? 50_000 : 25_000);
   const cap80CCD1B = Math.min(deduction80CCD1B, 50_000);
+  // 80CCD(2) employer NPS — capped at 14% of gross (allowed in BOTH regimes).
+  const cap80CCD2 = Math.min(Math.max(0, employerNps80CCD2), grossIncome * 0.14);
 
-  // New regime allows only Standard + 80CCD(2) employer contribution + a
-  // handful of others. We support stdDeduction + 80CCD(1B) only here
-  // because they're the most commonly applicable. Old regime supports
-  // the whole bag.
+  // New regime allows only Standard + 80CCD(2) employer contribution. Old
+  // regime supports the whole bag (std + 80C + 80D + 80CCD(1B) + others + HRA).
   const totalDeductions =
     regime === "new"
-      ? stdDeduction + cap80CCD1B
-      : stdDeduction + cap80C + cap80D + cap80CCD1B + deductionOther + hraExemption;
+      ? stdDeduction + cap80CCD2
+      : stdDeduction + cap80C + cap80D + cap80CCD1B + deductionOther + hraExemption + cap80CCD2;
 
   const taxableIncome = Math.max(0, grossIncome - totalDeductions);
 

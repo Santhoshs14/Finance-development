@@ -21,3 +21,4 @@ export * from "./notification";
 export * from "./profile";
 export * from "./netWorth";
 export * from "./aggregate";
+export * from "./tax";

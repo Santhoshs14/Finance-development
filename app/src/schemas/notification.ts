@@ -3,6 +3,7 @@ import { firestoreIdSchema } from "./common";
 
 export const notificationTypeSchema = z.enum([
   "bill_due",
+  "cc_due",
   "budget_warning",
   "budget_exceeded",
   "recurring_executed",

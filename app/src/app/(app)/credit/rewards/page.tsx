@@ -10,13 +10,14 @@ import { Gift, CreditCard, TrendingUp, Sparkles, IndianRupee } from "lucide-reac
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { SkeletonCard } from "@/components/SkeletonLoader";
 
-// Reward rate assumptions (typical Indian CC market)
-const _DEFAULT_REWARD_RATE = 0.01; // 1 point per ₹100 = ~0.25% value
+// Default reward assumptions (typical Indian CC market). Used as fallbacks
+// when a card has no per-card reward config set.
+const DEFAULT_REWARD_RATE = 1; // base points per ₹100 spent
 const CATEGORY_MULTIPLIERS: Record<string, number> = {
   Food: 2, Travel: 5, Shopping: 2, Entertainment: 3,
   Petrol: 2, Utilities: 1, Bills: 1, Subscription: 1,
 };
-const POINT_VALUE = 0.25; // ₹0.25 per reward point
+const DEFAULT_POINT_VALUE = 0.25; // ₹ per reward point
 
 export default function RewardsPage() {
   const { creditCards, transactions, cycleStartDay, dataReady } = useData();
@@ -28,33 +29,48 @@ export default function RewardsPage() {
   const rewardData = useMemo(() => {
     const cards = selectedCardId === "all" ? creditCards : creditCards.filter((c) => c.id === selectedCardId);
 
+    // Per-card reward config (fall back to market-default assumptions).
+    const cardRate = (cc: (typeof creditCards)[number]) =>
+      cc.reward_rate && cc.reward_rate > 0 ? cc.reward_rate : DEFAULT_REWARD_RATE;
+    const cardPointValue = (cc: (typeof creditCards)[number]) =>
+      cc.point_value && cc.point_value > 0 ? cc.point_value : DEFAULT_POINT_VALUE;
+
+    // Accumulated points balance the user has manually recorded per card.
+    const pointsBalance = cards.reduce((s, cc) => s + (cc.reward_points_balance || 0), 0);
+
     // Per category spending and estimated rewards
-    const categorySpend: Record<string, { spend: number; points: number }> = {};
+    const categorySpend: Record<string, { spend: number; points: number; cashback: number }> = {};
     const cycleRewards: { label: string; points: number; cashback: number }[] = [];
 
     recentCycles.forEach((cycle) => {
       let cyclePoints = 0;
+      let cycleCashback = 0;
       cards.forEach((cc) => {
+        const baseRate = cardRate(cc);
+        const pv = cardPointValue(cc);
         const txns = transactions.filter(
           (t) => t.account_id === cc.id && t.amount < 0 && t.date >= cycle.startDate && t.date <= cycle.endDate && t.category !== "Credit Card Payment"
         );
         txns.forEach((t) => {
           const amount = Math.abs(t.amount);
           const multiplier = CATEGORY_MULTIPLIERS[t.category] || 1;
-          const points = Math.floor((amount / 100) * multiplier);
+          const points = Math.floor((amount / 100) * baseRate * multiplier);
+          const cashback = points * pv;
           cyclePoints += points;
+          cycleCashback += cashback;
 
-          if (!categorySpend[t.category]) categorySpend[t.category] = { spend: 0, points: 0 };
+          if (!categorySpend[t.category]) categorySpend[t.category] = { spend: 0, points: 0, cashback: 0 };
           categorySpend[t.category].spend += amount;
           categorySpend[t.category].points += points;
+          categorySpend[t.category].cashback += cashback;
         });
       });
-      cycleRewards.push({ label: cycle.label.split(" ")[0], points: cyclePoints, cashback: cyclePoints * POINT_VALUE });
+      cycleRewards.push({ label: cycle.label.split(" ")[0], points: cyclePoints, cashback: cycleCashback });
     });
 
     const totalPoints = Object.values(categorySpend).reduce((s, c) => s + c.points, 0);
     const totalSpend = Object.values(categorySpend).reduce((s, c) => s + c.spend, 0);
-    const totalCashback = totalPoints * POINT_VALUE;
+    const totalCashback = Object.values(categorySpend).reduce((s, c) => s + c.cashback, 0);
     const effectiveRate = totalSpend > 0 ? (totalCashback / totalSpend) * 100 : 0;
 
     // Best categories for rewards
@@ -63,12 +79,12 @@ export default function RewardsPage() {
         category: cat,
         spend: data.spend,
         points: data.points,
-        cashback: data.points * POINT_VALUE,
-        rate: data.spend > 0 ? ((data.points * POINT_VALUE) / data.spend) * 100 : 0,
+        cashback: data.cashback,
+        rate: data.spend > 0 ? (data.cashback / data.spend) * 100 : 0,
       }))
       .sort((a, b) => b.points - a.points);
 
-    return { totalPoints, totalSpend, totalCashback, effectiveRate, categoryRanking, cycleRewards: cycleRewards.reverse() };
+    return { totalPoints, totalSpend, totalCashback, effectiveRate, categoryRanking, pointsBalance, cycleRewards: cycleRewards.reverse() };
   }, [creditCards, transactions, recentCycles, selectedCardId]);
 
   // Card optimization tips
@@ -111,14 +127,23 @@ export default function RewardsPage() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <Card className="border-brand/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <Sparkles className="w-3.5 h-3.5 text-brand" />
-              <span className="text-[11px] font-medium text-muted-foreground uppercase">Total Points</span>
+              <span className="text-[11px] font-medium text-muted-foreground uppercase">Points (6 cyc)</span>
             </div>
             <p className="text-lg font-bold text-brand">{rewardData.totalPoints.toLocaleString("en-IN")}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Gift className="w-3.5 h-3.5 text-accent" />
+              <span className="text-[11px] font-medium text-muted-foreground uppercase">Points Balance</span>
+            </div>
+            <p className="text-lg font-bold text-accent">{rewardData.pointsBalance.toLocaleString("en-IN")}</p>
           </CardContent>
         </Card>
         <Card>

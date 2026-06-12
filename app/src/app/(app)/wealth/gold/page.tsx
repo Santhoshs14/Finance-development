@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useInvestments, useInvestmentMutations } from "@/hooks/useInvestments";
 import { calculateGoldReturns, calculateGoldValue, GOLD_FORMS, GOLD_PURITY_MAP } from "@/utils/calculations";
+import { fmt } from "@/utils/format";
 import StatCard from "@/components/StatCard";
 import ChartCard from "@/components/ChartCard";
 import EmptyState from "@/components/EmptyState";
@@ -328,27 +329,27 @@ export default function GoldPage() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Buy/g</p>
-                  <p className="font-semibold text-foreground">₹{g.buy_price.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(g.buy_price)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Current/g</p>
-                  <p className="font-semibold text-foreground">₹{g.current_price.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(g.current_price)}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <p className="text-muted-foreground">Invested</p>
-                  <p className="font-semibold text-foreground">₹{returns.invested.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(returns.invested)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Value</p>
-                  <p className="font-semibold text-foreground">₹{returns.currentValue.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(returns.currentValue)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">P/L</p>
                   <p className={`font-semibold ${returns.profitLoss >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                    {returns.profitLoss >= 0 ? "+" : ""}₹{returns.profitLoss.toLocaleString("en-IN")}
+                    {returns.profitLoss >= 0 ? "+" : ""}{fmt(returns.profitLoss)}
                     <span className="ml-1 text-[10px]">({returns.plPercentage}%)</span>
                   </p>
                 </div>
@@ -360,7 +361,7 @@ export default function GoldPage() {
                 </p>
               )}
               {(g.making_charges || 0) > 0 && (
-                <p className="text-[11px] text-muted-foreground">Making charges: ₹{g.making_charges!.toLocaleString("en-IN")}</p>
+                <p className="text-[11px] text-muted-foreground">Making charges: {fmt(g.making_charges!)}</p>
               )}
             </motion.div>
           );
@@ -489,15 +490,15 @@ function GoldCalculatorSection({
                   </div>
                   <div className="rounded-xl bg-muted p-3">
                     <p className="text-[11px] text-muted-foreground">Gold Value</p>
-                    <p className="text-sm font-bold text-foreground">₹{calcResult.value.toLocaleString("en-IN")}</p>
+                    <p className="text-sm font-bold text-foreground">{fmt(calcResult.value)}</p>
                   </div>
                   <div className="rounded-xl bg-muted p-3">
                     <p className="text-[11px] text-muted-foreground">Making Charges</p>
-                    <p className="text-sm font-bold text-foreground">₹{calcResult.making.toLocaleString("en-IN")}</p>
+                    <p className="text-sm font-bold text-foreground">{fmt(calcResult.making)}</p>
                   </div>
                   <div className="rounded-xl bg-brand/10 p-3">
                     <p className="text-[11px] text-brand">Total Cost</p>
-                    <p className="text-sm font-bold text-brand">₹{calcResult.totalCost.toLocaleString("en-IN")}</p>
+                    <p className="text-sm font-bold text-brand">{fmt(calcResult.totalCost)}</p>
                   </div>
                 </div>
               )}

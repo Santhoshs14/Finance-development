@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useInvestments, useInvestmentMutations } from "@/hooks/useInvestments";
 import { calculateSIPGrowth } from "@/utils/calculations";
+import { fmt } from "@/utils/format";
 import StatCard from "@/components/StatCard";
 import ChartCard from "@/components/ChartCard";
 import EmptyState from "@/components/EmptyState";
@@ -241,7 +242,7 @@ export default function SIPsPage() {
                 ) : (
                   <motion.div key="display" className="text-right">
                     <p className="text-xs text-muted-foreground">Monthly SIP</p>
-                    <p className="text-sm font-bold text-brand">₹{(sip.sip_amount || 0).toLocaleString("en-IN")}</p>
+                    <p className="text-sm font-bold text-brand">{fmt(sip.sip_amount || 0)}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -249,11 +250,11 @@ export default function SIPsPage() {
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <p className="text-muted-foreground">Invested</p>
-                  <p className="font-semibold text-foreground">₹{invested.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(invested)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Current</p>
-                  <p className="font-semibold text-foreground">₹{current.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(current)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Returns</p>
@@ -273,9 +274,9 @@ export default function SIPsPage() {
         <div>
           <p className="text-sm font-medium text-foreground">SIP Insight</p>
           <p className="text-xs text-muted-foreground mt-1">
-            At ₹{monthlyOutflow.toLocaleString("en-IN")}/month with {ASSUMED_RETURN}% returns, your SIPs could grow to{" "}
+            At {fmt(monthlyOutflow)}/month with {ASSUMED_RETURN}% returns, your SIPs could grow to{" "}
             <span className="font-semibold text-brand">
-              ₹{calculateSIPGrowth(monthlyOutflow, ASSUMED_RETURN, 10).estimated_value.toLocaleString("en-IN")}
+              {fmt(calculateSIPGrowth(monthlyOutflow, ASSUMED_RETURN, 10).estimated_value)}
             </span>{" "}
             in 10 years.
           </p>

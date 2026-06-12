@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { simulateGoalContributions } from "@/utils/monteCarlo";
+import { simulateGoalContributions, monthlyContributionHistory } from "@/utils/monteCarlo";
 
 describe("monteCarlo.simulateGoalContributions", () => {
   it("returns horizon+1 points (0..N)", () => {
@@ -112,5 +112,46 @@ describe("monteCarlo.simulateGoalContributions", () => {
         result.points[i - 1]!.successProbability
       );
     }
+  });
+});
+
+describe("monteCarlo.monthlyContributionHistory", () => {
+  it("returns empty for no positive contributions", () => {
+    expect(monthlyContributionHistory([])).toEqual([]);
+    expect(monthlyContributionHistory([{ amount: 0, date: "2026-01-05" }])).toEqual([]);
+  });
+
+  it("sums contributions within the same month", () => {
+    const history = monthlyContributionHistory([
+      { amount: 1000, date: "2026-01-05" },
+      { amount: 2000, date: "2026-01-20" },
+    ]);
+    expect(history).toEqual([3000]);
+  });
+
+  it("fills gap months with zeros across the range", () => {
+    const history = monthlyContributionHistory([
+      { amount: 1000, date: "2026-01-10" },
+      { amount: 4000, date: "2026-04-10" },
+    ]);
+    // Jan, Feb(0), Mar(0), Apr
+    expect(history).toEqual([1000, 0, 0, 4000]);
+  });
+
+  it("handles a year boundary", () => {
+    const history = monthlyContributionHistory([
+      { amount: 500, date: "2025-11-01" },
+      { amount: 700, date: "2026-01-01" },
+    ]);
+    // Nov 2025, Dec 2025(0), Jan 2026
+    expect(history).toEqual([500, 0, 700]);
+  });
+
+  it("ignores negative amounts", () => {
+    const history = monthlyContributionHistory([
+      { amount: 1000, date: "2026-01-05" },
+      { amount: -500, date: "2026-01-06" },
+    ]);
+    expect(history).toEqual([1000]);
   });
 });

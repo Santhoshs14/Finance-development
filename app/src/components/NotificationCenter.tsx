@@ -14,11 +14,13 @@ import {
   TrendingUp,
   AlertTriangle,
   Repeat,
+  CreditCard,
   X,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, typeof Bell> = {
   bill_due: CalendarClock,
+  cc_due: CreditCard,
   budget_warning: AlertTriangle,
   budget_exceeded: AlertTriangle,
   recurring_executed: Repeat,
@@ -27,6 +29,7 @@ const ICON_MAP: Record<string, typeof Bell> = {
 
 const COLOR_MAP: Record<string, string> = {
   bill_due: "text-warning",
+  cc_due: "text-warning",
   budget_warning: "text-warning",
   budget_exceeded: "text-danger",
   recurring_executed: "text-brand",

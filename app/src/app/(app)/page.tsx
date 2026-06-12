@@ -14,7 +14,7 @@ import { db } from "@/lib/firebase";
 import { collection, doc, onSnapshot } from "firebase/firestore";
 import { transactionsAPI } from "@/services/api";
 import { getFinancialCycle, getCycleDayInfo, getRecentFinancialMonths } from "@/utils/financialMonth";
-import { calculateCreditCardHealth } from "@/utils/calculations";
+import { calculateCreditCardHealth, classifyAggregateTxn, calculateFinancialHealthScore, calculateSavingsRateFromAggregates, calculateNetWorth, calculatePortfolioAllocation, healthRating } from "@/utils/calculations";
 import { generateSmartInsights } from "@/utils/insights";
 import { fmt } from "@/utils/format";
 import QuickAddTransaction from "@/components/QuickAddTransaction";
@@ -75,9 +75,7 @@ function KpiStrip({ items }: { items: Array<{ label: string; value: number; icon
 
 /* ─── Health Gauge ─── */
 function HealthGauge({ score }: { score: number }) {
-  const getLabel = (s: number) => s >= 80 ? "Excellent" : s >= 60 ? "Good" : s >= 40 ? "Average" : "Poor";
-  const getColor = (s: number) => s >= 80 ? "var(--color-success)" : s >= 60 ? "hsl(var(--brand))" : s >= 40 ? "var(--color-warning)" : "var(--color-danger)";
-  const color = getColor(score);
+  const { label, color } = healthRating(score);
   return (
     <div className="flex flex-col items-center gap-3">
       <div className="relative w-[130px] h-[75px] overflow-hidden">
@@ -88,7 +86,7 @@ function HealthGauge({ score }: { score: number }) {
         <div className="absolute bottom-2 left-0 right-0 text-center text-2xl font-bold text-foreground">{score}</div>
       </div>
       <Badge variant={score >= 60 ? "success" : score >= 40 ? "warning" : "danger"}>
-        {getLabel(score)}
+        {label}
       </Badge>
     </div>
   );
@@ -248,11 +246,14 @@ export default function DashboardPage() {
 
   const cashFlow = useMemo(() => {
     let tIncome = 0, tExpense = 0;
-    const skipCats = new Set(["Transfer", "Credit Card Payment"]);
     cycleTxns.forEach((t) => {
-      if (t.payment_type === "Credit Card" || t.payment_type === "Self Transfer" || t.payment_type === "Transfer" || skipCats.has(t.category)) return;
-      if (t.type === "income" || t.category === "Income") tIncome += Math.abs(t.amount);
-      else if (t.amount < 0) tExpense += Math.abs(t.amount);
+      // Cash-flow view excludes credit-card purchases (not a cash outflow until
+      // the bill is paid). Transfers / CC repayments are handled by the shared
+      // classifier so income/expense detection matches the aggregate engines.
+      if (t.payment_type === "Credit Card") return;
+      const cls = classifyAggregateTxn(t);
+      if (cls === "income") tIncome += Math.abs(t.amount);
+      else if (cls === "expense") tExpense += Math.abs(t.amount);
     });
     return { totalIncome: tIncome, totalExpenses: tExpense, netSavings: tIncome - tExpense, dailyAvgSpend: cycleInfo.daysElapsed > 0 ? tExpense / cycleInfo.daysElapsed : 0 };
   }, [cycleTxns, cycleInfo]);
@@ -271,16 +272,13 @@ export default function DashboardPage() {
   }, [cycleTxns, categories]);
 
   const healthScore = useMemo(() => {
-    let score = 0;
-    score += Math.min(30, (savingsRate / 20) * 30);
-    const totalCCLimit = creditCards.reduce((s, c) => s + parseFloat(String(c.credit_limit || 0)), 0);
-    const totalCCOutstanding = creditCards.reduce((s, c) => s + parseFloat(String(c.liability || c.balance || 0)), 0);
-    const ccUtil = totalCCLimit > 0 ? totalCCOutstanding / totalCCLimit : 0;
-    score += Math.max(0, 25 - ccUtil * 83);
-    score += 25;
-    score += 10;
-    return Math.max(0, Math.min(100, Math.round(score)));
-  }, [savingsRate, creditCards]);
+    // Use the shared scoring util with the same inputs as the /reports/health
+    // page so the dashboard gauge and the health report always agree.
+    const savingsData = calculateSavingsRateFromAggregates(currentAggregate || {});
+    const netWorthData = calculateNetWorth(accounts, investments, []);
+    const allocation = calculatePortfolioAllocation(accounts, investments);
+    return calculateFinancialHealthScore(savingsData, netWorthData, null, allocation);
+  }, [currentAggregate, accounts, investments]);
 
   const _riskAlerts = useMemo(() => {
     const alerts: Array<{ type: "danger" | "warning"; message: string }> = [];

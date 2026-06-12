@@ -259,10 +259,13 @@ describe("Zod schemas — sanity coverage", () => {
     it("accepts complete snapshot", () => {
       expect(() =>
         saveNetWorthSnapshotSchema.parse({
-          date: "2026-06-01",
-          assets: 100000,
-          liabilities: 20000,
-          netWorth: 80000,
+          month: "2026-06",
+          accounts: 100000,
+          investments: 50000,
+          cc_outstanding: 20000,
+          lent: 5000,
+          borrowed: 0,
+          net_worth: 135000,
         })
       ).not.toThrow();
     });

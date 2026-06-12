@@ -6,6 +6,7 @@ import { useData } from "@/providers/DataProvider";
 import { emisAPI } from "@/services/api";
 import { fmt } from "@/utils/format";
 import { Card, CardContent, Button, Input, Progress, Badge } from "@/components/ui";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { Calculator, Plus, CreditCard, IndianRupee, TrendingDown, X, Calendar } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -19,12 +20,14 @@ interface EMI {
   monthsPaid: number;
   interestRate: number;
   startDate: string;
+  status?: "active" | "completed" | "closed";
 }
 
 export default function EMIsPage() {
   const { creditCards } = useData();
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
+  const [confirmPayId, setConfirmPayId] = useState<string | null>(null);
   const [form, setForm] = useState({
     cardId: "",
     description: "",
@@ -133,8 +136,12 @@ export default function EMIsPage() {
   const incrementMonth = (id: string) => {
     const emi = emis.find((e) => e.id === id);
     if (!emi) return;
-    updateMutation.mutate({ id, data: { monthsPaid: Math.min(emi.monthsPaid + 1, emi.tenure) } });
+    const nextMonths = Math.min(emi.monthsPaid + 1, emi.tenure);
+    updateMutation.mutate({ id, data: { monthsPaid: nextMonths } });
+    if (nextMonths >= emi.tenure) toast.success("EMI fully paid off! 🎉");
   };
+
+  const confirmEmi = confirmPayId ? emis.find((e) => e.id === confirmPayId) : null;
 
   // Summary
   const summary = useMemo(() => {
@@ -261,7 +268,7 @@ export default function EMIsPage() {
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => incrementMonth(emi.id)}>+1 month</Button>
+                      <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setConfirmPayId(emi.id)}>+1 month</Button>
                       <button onClick={() => deleteEMI(emi.id)} className="p-1.5 text-danger/50 hover:text-danger transition-colors opacity-0 group-hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
@@ -335,6 +342,17 @@ export default function EMIsPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={confirmPayId !== null}
+        title="Record EMI payment?"
+        message={confirmEmi ? `Mark one more month paid for "${confirmEmi.description}" (${confirmEmi.monthsPaid + 1}/${confirmEmi.tenure}).` : ""}
+        confirmLabel="Record payment"
+        confirmColor="primary"
+        icon={Calculator}
+        onConfirm={() => { if (confirmPayId) incrementMonth(confirmPayId); setConfirmPayId(null); }}
+        onCancel={() => setConfirmPayId(null)}
+      />
     </div>
   );
 }

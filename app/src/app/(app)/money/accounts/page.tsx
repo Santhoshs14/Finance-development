@@ -30,18 +30,30 @@ function AccountModal({ open, onClose, onSubmit, initial }: {
   const [name, setName] = useState((initial?.account_name as string) || "");
   const [type, setType] = useState<AccountType>((initial?.type as AccountType) || "savings");
   const [balance, setBalance] = useState(String(initial?.balance ?? "0"));
+  const [creditLimit, setCreditLimit] = useState(String(initial?.credit_limit ?? "0"));
+  const [billingDay, setBillingDay] = useState(String(initial?.billing_cycle_start_day ?? ""));
+  const [dueDays, setDueDays] = useState(String(initial?.due_days_after ?? ""));
+  const [rewardRate, setRewardRate] = useState(String(initial?.reward_rate ?? ""));
+  const [pointValue, setPointValue] = useState(String(initial?.point_value ?? ""));
+  const [pointsBalance, setPointsBalance] = useState(String(initial?.reward_points_balance ?? ""));
 
   useEffect(() => {
     setName((initial?.account_name as string) || "");
     setType((initial?.type as AccountType) || "savings");
     setBalance(String(initial?.balance ?? "0"));
+    setCreditLimit(String(initial?.credit_limit ?? "0"));
+    setBillingDay(String(initial?.billing_cycle_start_day ?? ""));
+    setDueDays(String(initial?.due_days_after ?? ""));
+    setRewardRate(String(initial?.reward_rate ?? ""));
+    setPointValue(String(initial?.point_value ?? ""));
+    setPointsBalance(String(initial?.reward_points_balance ?? ""));
   }, [initial, open]);
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold text-foreground">{initial ? "Edit Account" : "Add Account"}</h2>
         <div className="space-y-3">
           <div>
@@ -72,13 +84,55 @@ function AccountModal({ open, onClose, onSubmit, initial }: {
             </label>
             <Input type="number" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0" />
           </div>
+          {type === "credit" && (
+            <>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Credit Limit</label>
+                <Input type="number" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} placeholder="0" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Billing day (1–28)</label>
+                  <Input type="number" min={1} max={28} value={billingDay} onChange={(e) => setBillingDay(e.target.value)} placeholder="e.g. 1" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Due days after</label>
+                  <Input type="number" min={0} max={60} value={dueDays} onChange={(e) => setDueDays(e.target.value)} placeholder="e.g. 18" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Pts / ₹100</label>
+                  <Input type="number" value={rewardRate} onChange={(e) => setRewardRate(e.target.value)} placeholder="1" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">₹ / point</label>
+                  <Input type="number" value={pointValue} onChange={(e) => setPointValue(e.target.value)} placeholder="0.25" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Points bal.</label>
+                  <Input type="number" value={pointsBalance} onChange={(e) => setPointsBalance(e.target.value)} placeholder="0" />
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button
             onClick={() => {
               if (!name.trim()) { toast.error("Name required"); return; }
-              onSubmit({ account_name: name.trim(), type, balance: parseFloat(balance) || 0 });
+              const payload: Record<string, unknown> = { account_name: name.trim(), type, balance: parseFloat(balance) || 0 };
+              if (type === "credit") {
+                payload.credit_limit = parseFloat(creditLimit) || 0;
+                payload.liability = parseFloat(balance) || 0;
+                if (billingDay.trim() !== "") payload.billing_cycle_start_day = parseInt(billingDay, 10);
+                if (dueDays.trim() !== "") payload.due_days_after = parseInt(dueDays, 10);
+                if (rewardRate.trim() !== "") payload.reward_rate = parseFloat(rewardRate);
+                if (pointValue.trim() !== "") payload.point_value = parseFloat(pointValue);
+                if (pointsBalance.trim() !== "") payload.reward_points_balance = parseFloat(pointsBalance);
+              }
+              onSubmit(payload);
               onClose();
             }}
           >

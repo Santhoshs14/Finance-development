@@ -1,16 +1,94 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGoals, useGoalMutations } from "@/hooks/useGoals";
 import { useInvestments } from "@/hooks/useInvestments";
 import { useCelebration } from "@/hooks/useCelebration";
 import { calculateGoalCompletion } from "@/utils/calculations";
+import { simulateGoalContributions, monthlyContributionHistory } from "@/utils/monteCarlo";
+import { fmt } from "@/utils/format";
+import { goalsAPI } from "@/services/api";
 import StatCard from "@/components/StatCard";
 import EmptyState from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { ProjectionFan, type FanPoint } from "@/components/charts/ProjectionFan";
 import { useTheme } from "@/providers/ThemeProvider";
-import { Target, Plus, Pencil, Trash2, PiggyBank, CheckCircle2 } from "lucide-react";
+import { Target, Plus, Pencil, Trash2, PiggyBank, CheckCircle2, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+interface Contribution {
+  id: string;
+  amount: number;
+  date: string;
+  note?: string;
+}
+
+/** Per-goal Monte-Carlo forecast panel (lazy: only fetches when expanded). */
+function GoalForecast({ goal }: { goal: { id: string; current_amount: number; target_amount: number } }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["goal-contributions", goal.id],
+    queryFn: async () => {
+      const res = await goalsAPI.listContributions(goal.id);
+      return (res.contributions || []) as Contribution[];
+    },
+  });
+
+  const forecast = useMemo(() => {
+    const history = monthlyContributionHistory(data || []);
+    if (history.length < 2) return null;
+    const result = simulateGoalContributions({
+      currentAmount: goal.current_amount,
+      targetAmount: goal.target_amount,
+      history,
+      horizonMonths: 60,
+      simulations: 1000,
+      seed: 42, // deterministic render
+    });
+    const now = new Date();
+    const fan: FanPoint[] = result.points
+      .filter((_, i) => i % 3 === 0) // quarterly labels keep the axis readable
+      .map((p) => {
+        const d = new Date(now.getFullYear(), now.getMonth() + p.monthsAhead, 1);
+        return {
+          label: d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }),
+          low: Math.round(p.p10),
+          median: Math.round(p.p50),
+          high: Math.round(p.p90),
+        };
+      });
+    return { fan, result };
+  }, [data, goal.current_amount, goal.target_amount]);
+
+  if (isLoading) {
+    return <div className="h-32 rounded-xl bg-muted animate-pulse" />;
+  }
+
+  if (!forecast) {
+    return (
+      <p className="text-[11px] text-muted-foreground py-4 text-center">
+        Add at least 2 months of contributions to see a Monte-Carlo forecast.
+      </p>
+    );
+  }
+
+  const { result } = forecast;
+  const medianMonths = result.medianCompletionMonths;
+  const completionLabel = medianMonths === null
+    ? "Not reachable at current pace within 5 years"
+    : (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + Math.round(medianMonths));
+        return `Likely complete by ${d.toLocaleDateString("en-IN", { month: "short", year: "numeric" })} (~${Math.round(medianMonths)} mo)`;
+      })();
+
+  return (
+    <div className="pt-2 space-y-2">
+      <p className="text-[11px] font-medium text-foreground">{completionLabel}</p>
+      <ProjectionFan data={forecast.fan} height={180} targetValue={goal.target_amount} />
+    </div>
+  );
+}
 
 export default function GoalsPage() {
   const { goals, isLoading } = useGoals();
@@ -19,12 +97,14 @@ export default function GoalsPage() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const { celebrate } = useCelebration();
+  const queryClient = useQueryClient();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [addFundsId, setAddFundsId] = useState<string | null>(null);
   const [addFundsAmount, setAddFundsAmount] = useState("");
+  const [forecastId, setForecastId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     goal_name: "",
@@ -91,7 +171,7 @@ export default function GoalsPage() {
     setShowForm(true);
   };
 
-  const handleAddFunds = () => {
+  const handleAddFunds = async () => {
     const amount = parseFloat(addFundsAmount) || 0;
     if (!addFundsId || amount <= 0) return;
     const goal = goals.find((g) => g.id === addFundsId);
@@ -99,14 +179,20 @@ export default function GoalsPage() {
 
     const prevPercent = Math.round((goal.current_amount / goal.target_amount) * 100);
     const newPercent = Math.round(((goal.current_amount + amount) / goal.target_amount) * 100);
+    const goalId = addFundsId;
 
-    updateGoal.mutate({
-      id: addFundsId,
-      data: { current_amount: goal.current_amount + amount },
-    });
-
-    // Fire confetti if milestone crossed
-    celebrate(addFundsId, prevPercent, newPercent);
+    try {
+      // Records a contribution (audit trail + forecast history) and atomically
+      // increments the goal's current_amount server-side.
+      await goalsAPI.addContribution(goalId, { amount });
+      queryClient.invalidateQueries({ queryKey: ["goal-contributions", goalId] });
+      queryClient.invalidateQueries({ queryKey: ["goals"] });
+      // Fire confetti if milestone crossed
+      celebrate(goalId, prevPercent, newPercent);
+    } catch {
+      // Fallback: direct increment if the contribution endpoint fails.
+      updateGoal.mutate({ id: goalId, data: { current_amount: goal.current_amount + amount } });
+    }
 
     setAddFundsId(null);
     setAddFundsAmount("");
@@ -216,7 +302,7 @@ export default function GoalsPage() {
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-muted-foreground">
-                    ₹{g.current_amount.toLocaleString("en-IN")} / ₹{g.target_amount.toLocaleString("en-IN")}
+                    {fmt(g.current_amount)} / {fmt(g.target_amount)}
                   </span>
                   <span className={`font-semibold ${isComplete ? "text-emerald-500" : "text-foreground"}`}>
                     {c.progress_percentage}%
@@ -237,11 +323,11 @@ export default function GoalsPage() {
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <p className="text-muted-foreground">Remaining</p>
-                  <p className="font-semibold text-foreground">₹{c.remaining.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(c.remaining)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Monthly Req.</p>
-                  <p className="font-semibold text-foreground">₹{c.monthly_savings_required.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(c.monthly_savings_required)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Months Left</p>
@@ -256,15 +342,26 @@ export default function GoalsPage() {
                 }`}>
                   {c.on_track ? "On Track" : "Needs Attention"}
                 </span>
-                {!isComplete && (
+                <div className="flex items-center gap-3">
                   <button
-                    onClick={() => { setAddFundsId(g.id); setAddFundsAmount(""); }}
-                    className="text-xs font-medium text-brand hover:underline"
+                    onClick={() => setForecastId(forecastId === g.id ? null : g.id)}
+                    className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    + Add Funds
+                    <TrendingUp className="w-3.5 h-3.5" /> {forecastId === g.id ? "Hide" : "Forecast"}
                   </button>
-                )}
+                  {!isComplete && (
+                    <button
+                      onClick={() => { setAddFundsId(g.id); setAddFundsAmount(""); }}
+                      className="text-xs font-medium text-brand hover:underline"
+                    >
+                      + Add Funds
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Monte-Carlo forecast (lazy) */}
+              {forecastId === g.id && <GoalForecast goal={g} />}
 
               {/* Add Funds inline */}
               {addFundsId === g.id && (

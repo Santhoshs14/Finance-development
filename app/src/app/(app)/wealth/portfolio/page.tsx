@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useInvestments, useInvestmentMutations } from "@/hooks/useInvestments";
 import { useData } from "@/providers/DataProvider";
 import { calculateInvestmentPL, calculatePortfolioAllocation, calculateXIRR } from "@/utils/calculations";
+import { fmt } from "@/utils/format";
 import StatCard from "@/components/StatCard";
 import ChartCard from "@/components/ChartCard";
 import EmptyState from "@/components/EmptyState";
@@ -56,6 +57,8 @@ export default function PortfolioPage() {
     sip_amount: "",
     account_id: "",
     linked_transaction_id: "",
+    purchase_date: "",
+    scheme_code: "",
   });
 
   const bankAccounts = accounts.filter((a) => a.type !== "credit");
@@ -122,7 +125,7 @@ export default function PortfolioPage() {
   }, [allocation]);
 
   const resetForm = () => {
-    setForm({ name: "", investment_type: "Equity", buy_price: "", current_price: "", quantity: "", sip_amount: "", account_id: "", linked_transaction_id: "" });
+    setForm({ name: "", investment_type: "Equity", buy_price: "", current_price: "", quantity: "", sip_amount: "", account_id: "", linked_transaction_id: "", purchase_date: "", scheme_code: "" });
     setEditingId(null);
     setShowForm(false);
   };
@@ -159,6 +162,8 @@ export default function PortfolioPage() {
       sip_amount: parseFloat(form.sip_amount) || 0,
       account_id: form.account_id || null,
       linked_transaction_id: form.linked_transaction_id || null,
+      purchase_date: form.purchase_date || null,
+      scheme_code: form.scheme_code.trim() || null,
     };
 
     // If editing a needs_allocation investment and user provided proper NAV/qty, clear the flag
@@ -184,6 +189,8 @@ export default function PortfolioPage() {
       sip_amount: String(inv.sip_amount || ""),
       account_id: inv.account_id || "",
       linked_transaction_id: (inv as { linked_transaction_id?: string }).linked_transaction_id || "",
+      purchase_date: inv.purchase_date || "",
+      scheme_code: inv.scheme_code || "",
     });
     setEditingId(inv.id);
     setShowForm(true);
@@ -352,6 +359,13 @@ export default function PortfolioPage() {
                     <input className={inputClass} type="number" placeholder={labels.quantity} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
                   )}
                   <input className={inputClass} type="number" placeholder={`${labels.sipAmount} (optional)`} value={form.sip_amount} onChange={(e) => setForm({ ...form, sip_amount: e.target.value })} />
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-muted-foreground px-1">Purchase date (for XIRR)</label>
+                    <input className={inputClass} type="date" value={form.purchase_date} onChange={(e) => setForm({ ...form, purchase_date: e.target.value })} />
+                  </div>
+                  {form.investment_type === "Mutual Fund" && (
+                    <input className={inputClass} type="text" placeholder="AMFI scheme code (auto NAV, optional)" value={form.scheme_code} onChange={(e) => setForm({ ...form, scheme_code: e.target.value })} />
+                  )}
                 </>
               )}
               <select className={selectClass} value={form.account_id} onChange={(e) => setForm({ ...form, account_id: e.target.value })}>
@@ -429,22 +443,22 @@ export default function PortfolioPage() {
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <p className="text-muted-foreground">Invested</p>
-                  <p className="font-semibold text-foreground">₹{inv.invested.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(inv.invested)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Current</p>
-                  <p className="font-semibold text-foreground">₹{inv.current_value.toLocaleString("en-IN")}</p>
+                  <p className="font-semibold text-foreground">{fmt(inv.current_value)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">P/L</p>
                   <p className={`font-semibold ${inv.profit_loss >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                    {inv.profit_loss >= 0 ? "+" : ""}₹{inv.profit_loss.toLocaleString("en-IN")}
+                    {inv.profit_loss >= 0 ? "+" : ""}{fmt(inv.profit_loss)}
                     <span className="ml-1 text-[10px]">({inv.pl_percentage}%)</span>
                   </p>
                 </div>
               </div>
               {orig.sip_amount ? (
-                <p className="text-[11px] text-muted-foreground">SIP: ₹{orig.sip_amount.toLocaleString("en-IN")}/mo</p>
+                <p className="text-[11px] text-muted-foreground">SIP: {fmt(orig.sip_amount)}/mo</p>
               ) : null}
             </motion.div>
           );

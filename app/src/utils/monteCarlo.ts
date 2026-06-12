@@ -144,3 +144,37 @@ export function simulateGoalContributions(input: MonteCarloInput): MonteCarloRes
     p90CompletionMonths: Number.isFinite(p90) ? p90 : null,
   };
 }
+
+/**
+ * Bucket dated contributions into a chronological array of per-month totals.
+ * Months with no contribution are included as 0 so the average / std-dev
+ * reflect real saving cadence (e.g. skipped months pull the mean down).
+ */
+export function monthlyContributionHistory(
+  contributions: { amount: number; date: string }[]
+): number[] {
+  const positive = contributions.filter((c) => c.amount > 0 && c.date);
+  if (positive.length === 0) return [];
+
+  const byMonth = new Map<string, number>();
+  for (const c of positive) {
+    const key = c.date.slice(0, 7); // YYYY-MM
+    byMonth.set(key, (byMonth.get(key) ?? 0) + c.amount);
+  }
+
+  const keys = [...byMonth.keys()].sort();
+  const first = keys[0]!;
+  const last = keys[keys.length - 1]!;
+
+  // Walk month-by-month from first to last so gaps become explicit zeros.
+  const history: number[] = [];
+  let [y, m] = first.split("-").map(Number) as [number, number];
+  const [ly, lm] = last.split("-").map(Number) as [number, number];
+  while (y < ly || (y === ly && m <= lm)) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    history.push(byMonth.get(key) ?? 0);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return history;
+}

@@ -5,6 +5,8 @@
 
 const requiredServer = [
   "FIREBASE_PROJECT_ID",
+  "FIREBASE_CLIENT_EMAIL",
+  "FIREBASE_PRIVATE_KEY",
 ] as const;
 
 const optionalServer = [

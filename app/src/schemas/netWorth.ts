@@ -1,40 +1,34 @@
 import { z } from "zod";
-import { firestoreIdSchema, isoDateSchema, moneyInputSchema } from "./common";
+import { cycleKeySchema, firestoreIdSchema } from "./common";
 
+/**
+ * Net-worth snapshots are keyed by financial month ("YYYY-MM"). This shape
+ * matches what the UI (`/wealth/net-worth`) and the `/api/net-worth/snapshots`
+ * route read and write — a single source of truth across client, API, and cron.
+ */
 export const saveNetWorthSnapshotSchema = z.object({
-  date: isoDateSchema,
-  assets: moneyInputSchema,
-  liabilities: moneyInputSchema,
-  netWorth: moneyInputSchema,
-  breakdown: z
-    .object({
-      bank: moneyInputSchema.optional(),
-      investments: moneyInputSchema.optional(),
-      lending: moneyInputSchema.optional(),
-      credit: moneyInputSchema.optional(),
-      gold: moneyInputSchema.optional(),
-    })
-    .optional(),
+  month: cycleKeySchema,
+  accounts: z.number(),
+  investments: z.number(),
+  cc_outstanding: z.number(),
+  lent: z.number(),
+  borrowed: z.number(),
+  net_worth: z.number(),
 });
 
 export type SaveNetWorthSnapshotInput = z.infer<typeof saveNetWorthSnapshotSchema>;
 
 export const netWorthSnapshotDocSchema = z.object({
   id: firestoreIdSchema,
-  date: isoDateSchema,
-  assets: z.number(),
-  liabilities: z.number(),
-  netWorth: z.number(),
-  breakdown: z
-    .object({
-      bank: z.number().optional(),
-      investments: z.number().optional(),
-      lending: z.number().optional(),
-      credit: z.number().optional(),
-      gold: z.number().optional(),
-    })
-    .optional(),
+  month: cycleKeySchema,
+  accounts: z.number(),
+  investments: z.number(),
+  cc_outstanding: z.number(),
+  lent: z.number(),
+  borrowed: z.number(),
+  net_worth: z.number(),
   createdAt: z.string().or(z.date()).optional(),
+  updatedAt: z.string().or(z.date()).optional(),
 });
 
 export type NetWorthSnapshotDoc = z.infer<typeof netWorthSnapshotDocSchema>;

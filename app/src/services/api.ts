@@ -194,6 +194,19 @@ export const goalsAPI = {
     });
     return res.json();
   },
+
+  async listContributions(id: string) {
+    const res = await authFetch(`/api/goals/${id}/contributions`);
+    return res.json();
+  },
+
+  async addContribution(id: string, data: { amount: number; date?: string; note?: string }) {
+    const res = await authFetch(`/api/goals/${id}/contributions`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
 };
 
 // ─── Investments ────────────────────────────────────────────────
@@ -499,6 +512,23 @@ export const netWorthAPI = {
   }) {
     const res = await authFetch("/api/net-worth/snapshots", {
       method: "POST",
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+};
+
+// ─── Tax ────────────────────────────────────────────────────────
+
+export const taxAPI = {
+  async get(fy: string) {
+    const res = await authFetch(`/api/tax/${fy}`);
+    return res.json();
+  },
+
+  async save(fy: string, data: Record<string, unknown>) {
+    const res = await authFetch(`/api/tax/${fy}`, {
+      method: "PUT",
       body: JSON.stringify(data),
     });
     return res.json();

@@ -22,6 +22,8 @@ export async function createEmi(uid: string, input: CreateEmiInput): Promise<str
     monthsPaid: input.monthsPaid,
     interestRate: input.interestRate,
     startDate: input.startDate ?? today,
+    status: input.status ?? (input.monthsPaid >= input.tenure ? "completed" : "active"),
+    paidAmount: input.paidAmount ?? input.emiAmount * input.monthsPaid,
     createdAt: FieldValue.serverTimestamp(),
   });
   return ref.id;
@@ -32,9 +34,25 @@ export async function updateEmi(
   id: string,
   patch: UpdateEmiInput
 ): Promise<void> {
-  await adminDb
-    .doc(`users/${uid}/emis/${id}`)
-    .set({ ...patch, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const ref = adminDb.doc(`users/${uid}/emis/${id}`);
+  const updates: Record<string, unknown> = { ...patch, updatedAt: FieldValue.serverTimestamp() };
+
+  // Keep status / paidAmount in sync when months-paid advances.
+  if (patch.monthsPaid !== undefined) {
+    const snap = await ref.get();
+    const data = snap.data() ?? {};
+    const tenure = (patch.tenure ?? data.tenure ?? 0) as number;
+    const emiAmount = (patch.emiAmount ?? data.emiAmount ?? 0) as number;
+    if (patch.status === undefined && tenure > 0) {
+      updates.status = patch.monthsPaid >= tenure ? "completed" : "active";
+    }
+    if (patch.paidAmount === undefined) {
+      updates.paidAmount = emiAmount * patch.monthsPaid;
+    }
+    updates.lastPaymentDate = new Date().toISOString().split("T")[0];
+  }
+
+  await ref.set(updates, { merge: true });
 }
 
 export async function deleteEmi(uid: string, id: string): Promise<void> {

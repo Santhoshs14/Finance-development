@@ -96,8 +96,13 @@ service cloud.firestore {
       }
 
       // ── Catch-all for any new subcollection we haven't named yet ──
+      // Firestore evaluates match rules with OR semantics, so this permissive
+      // rule would otherwise override the `allow write: if false` locks on
+      // passkeys/security/audit. Exclude those admin-only collections here so
+      // the locks hold. (Reads for them are still granted by their own rules.)
       match /{subcollection}/{documentId=**} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isOwner(userId)
+          && !(subcollection in ['passkeys', 'security', 'audit']);
       }
     }
 

@@ -25,8 +25,10 @@ export interface Investment {
   invested_amount?: number;
   value?: number;
   sip_amount?: number;
-  linked_goal_id?: string;
-  account_id?: string;
+  linked_goal_id?: string | null;
+  account_id?: string | null;
+  scheme_code?: string;
+  fund_house?: string;
   purity?: number;
   weight_grams?: number;
   form?: "digital" | "physical" | "sgb" | "etf";
@@ -65,6 +67,43 @@ export interface Goal {
 }
 
 const r = (v: number) => Math.round(v * 100) / 100;
+
+/**
+ * Canonical classification of a transaction for aggregate / cash-flow math.
+ *
+ * `type` is the source of truth — it matches the live aggregate-increment path
+ * in the transactions API. `category === "Income"` and the amount sign are
+ * fallbacks only for legacy rows written before the `type` field existed.
+ *
+ * Internal movements (self-transfers and credit-card repayments) are excluded:
+ * the live increment path never counts them, so neither should any recompute.
+ * Using this everywhere keeps the dashboard, nightly rollup, and the manual
+ * "Recalculate" actions in agreement.
+ */
+export type TxnClassification = "income" | "expense" | "skip";
+
+export const classifyAggregateTxn = (t: {
+  type?: string;
+  amount?: number;
+  category?: string;
+  payment_type?: string;
+}): TxnClassification => {
+  const category = t.category ?? "";
+  const paymentType = t.payment_type ?? "";
+  if (
+    category === "Transfer" ||
+    category === "Credit Card Payment" ||
+    paymentType === "Self Transfer" ||
+    paymentType === "Transfer"
+  ) {
+    return "skip";
+  }
+  if (t.type === "income") return "income";
+  if (t.type === "expense") return "expense";
+  // Legacy fallback for rows without an explicit `type`.
+  if (category === "Income") return "income";
+  return (t.amount ?? 0) > 0 ? "income" : "expense";
+};
 
 export const calculateNetWorth = (
   accounts: Account[],
@@ -265,6 +304,102 @@ export const calculatePortfolioAllocation = (
   return { totals, percentages, totalValue };
 };
 
+/**
+ * Financial-health scoring — the single source of truth used by both the
+ * dashboard gauge and the `/reports/health` page so they never diverge.
+ *
+ * Four pillars (max 100): Savings Rate (30), Debt Health (30),
+ * Emergency Fund (20), Diversification (20). Returns the individual pillar
+ * scores plus the underlying metrics needed to render advice.
+ */
+export interface HealthPillarScores {
+  savings: number;
+  debt: number;
+  emergency: number;
+  diversification: number;
+  total: number;
+  metrics: {
+    savingsRate: number;
+    totalDebt: number;
+    totalAssets: number;
+    debtRatio: number;
+    monthlyExpenses: number;
+    targetEmergencyFund: number;
+    currentCash: number;
+    emergencyMonths: number;
+    maxNonCashAllocation: number;
+    assetClasses: number;
+  };
+}
+
+export const getHealthPillars = (
+  savingsRateData: { savings_rate?: number; expenses?: number },
+  netWorthData: {
+    total_cc_outstanding?: number;
+    total_accounts?: number;
+    total_investments?: number;
+  },
+  portfolioData: { totals?: Record<string, number>; percentages?: Record<string, number> }
+): HealthPillarScores => {
+  // 1. Savings Rate (0-30)
+  const savingsRate = savingsRateData.savings_rate || 0;
+  const savings = Math.max(0, Math.min(30, Math.round((savingsRate / 20) * 30)));
+
+  // 2. Debt Health (0-30)
+  const totalDebt = netWorthData.total_cc_outstanding || 0;
+  const totalAssets =
+    (netWorthData.total_accounts || 0) + (netWorthData.total_investments || 0);
+  const debtRatio =
+    totalAssets > 0 ? totalDebt / totalAssets : totalDebt > 0 ? 1 : 0;
+  const debt = Math.max(0, Math.round(30 - debtRatio * 60));
+
+  // 3. Emergency Fund (0-20) — target 3 months of expenses
+  const monthlyExpenses = savingsRateData.expenses || 0;
+  const targetEmergencyFund = monthlyExpenses > 0 ? monthlyExpenses * 3 : 50000;
+  const currentCash = portfolioData.totals?.Cash || 0;
+  const emergency = Math.max(0, Math.min(20, Math.round((currentCash / targetEmergencyFund) * 20)));
+  const emergencyMonths = monthlyExpenses > 0 ? currentCash / monthlyExpenses : 0;
+
+  // 4. Diversification (0-20) — penalise over-concentration in one non-cash class
+  const percentages = portfolioData.percentages || {};
+  const maxNonCashAllocation = Math.max(
+    percentages.Equity || 0,
+    percentages.Debt || 0,
+    percentages.Gold || 0,
+    percentages.Crypto || 0
+  );
+  const diversification =
+    totalAssets > 0
+      ? maxNonCashAllocation < 80
+        ? 20
+        : Math.max(0, Math.round(100 - maxNonCashAllocation))
+      : 0;
+  const assetClasses = Object.values(percentages).filter((v) => v > 5).length;
+
+  const total = Math.max(0, Math.min(100, savings + debt + emergency + diversification));
+
+  return {
+    savings,
+    debt,
+    emergency,
+    diversification,
+    total,
+    metrics: {
+      savingsRate,
+      totalDebt,
+      totalAssets,
+      debtRatio,
+      monthlyExpenses,
+      targetEmergencyFund,
+      currentCash,
+      emergencyMonths,
+      maxNonCashAllocation,
+      assetClasses,
+    },
+  };
+};
+
+/** Overall financial-health score (0-100). Thin wrapper over getHealthPillars. */
 export const calculateFinancialHealthScore = (
   savingsRateData: { savings_rate?: number; expenses?: number },
   netWorthData: {
@@ -274,41 +409,14 @@ export const calculateFinancialHealthScore = (
   },
   _ccData: unknown,
   portfolioData: { totals?: Record<string, number>; percentages?: Record<string, number> }
-) => {
-  let score = 0;
+) => getHealthPillars(savingsRateData, netWorthData, portfolioData).total;
 
-  const savingsRate = savingsRateData.savings_rate || 0;
-  score += Math.min(30, (savingsRate / 20) * 30);
-
-  const totalDebt = netWorthData.total_cc_outstanding || 0;
-  const totalAssets =
-    (netWorthData.total_accounts || 0) + (netWorthData.total_investments || 0);
-  const debtRatio =
-    totalAssets > 0 ? totalDebt / totalAssets : totalDebt > 0 ? 1 : 0;
-  score += Math.max(0, 30 - debtRatio * 60);
-
-  const monthlyExpenses = savingsRateData.expenses || 0;
-  const targetEmergencyFund =
-    monthlyExpenses > 0 ? monthlyExpenses * 3 : 1000;
-  const currentCash = portfolioData.totals?.Cash || 0;
-  score += Math.min(20, (currentCash / targetEmergencyFund) * 20);
-
-  const percentages = portfolioData.percentages || {};
-  const maxNonCashAllocation = Math.max(
-    percentages.Equity || 0,
-    percentages.Debt || 0,
-    percentages.Gold || 0,
-    percentages.Crypto || 0
-  );
-  if (totalAssets > 0) {
-    if (maxNonCashAllocation < 80) {
-      score += 20;
-    } else {
-      score += Math.max(0, 100 - maxNonCashAllocation);
-    }
-  }
-
-  return Math.max(0, Math.min(100, Math.round(score)));
+/** Single rating scale (label + color) for a 0-100 health score. */
+export const healthRating = (score: number): { label: string; color: string } => {
+  if (score >= 80) return { label: "Excellent", color: "#10b981" };
+  if (score >= 60) return { label: "Good", color: "#3b82f6" };
+  if (score >= 40) return { label: "Fair", color: "#f59e0b" };
+  return { label: "Needs Work", color: "#ef4444" };
 };
 
 interface Cashflow {

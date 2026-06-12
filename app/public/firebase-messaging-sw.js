@@ -11,15 +11,16 @@ importScripts("https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js
 // eslint-disable-next-line no-undef
 importScripts("https://www.gstatic.com/firebasejs/12.14.0/firebase-messaging-compat.js");
 
-// These are placeholders — replaced at build time via the env vars below,
-// or read from URL query params during dev. Safe to ship since Firebase
-// config is public.
+// Firebase web config is public (safe to ship). The client registers this
+// worker with the config passed as URL query params — see `useFcm.ts` — so
+// it stays in sync with NEXT_PUBLIC_FIREBASE_* without a build-time step.
+const swParams = new URLSearchParams(self.location.search);
 const firebaseConfig = {
-  apiKey: "PLACEHOLDER_API_KEY",
-  authDomain: "PLACEHOLDER.firebaseapp.com",
-  projectId: "PLACEHOLDER_PROJECT",
-  messagingSenderId: "PLACEHOLDER_SENDER",
-  appId: "PLACEHOLDER_APP_ID",
+  apiKey: swParams.get("apiKey") || "",
+  authDomain: swParams.get("authDomain") || "",
+  projectId: swParams.get("projectId") || "",
+  messagingSenderId: swParams.get("messagingSenderId") || "",
+  appId: swParams.get("appId") || "",
 };
 
 // eslint-disable-next-line no-undef

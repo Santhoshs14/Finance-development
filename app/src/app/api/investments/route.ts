@@ -48,19 +48,27 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, investment_type, buy_price, current_price, quantity } = body;
 
-  if (!name || !buy_price || !quantity) {
+  const parsedQuantity = parseFloat(quantity);
+  if (!name || !Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
     return NextResponse.json(
-      { error: "Missing required fields: name, buy_price, quantity" },
+      { error: "Missing or invalid required fields: name, quantity" },
       { status: 400 }
     );
   }
 
+  // buy_price is optional (e.g. gifted holdings or fixed deposits tracked by
+  // current value only); default to 0 rather than rejecting the request.
+  const parsedBuyPrice = Number.isFinite(parseFloat(buy_price)) ? parseFloat(buy_price) : 0;
+  const parsedCurrentPrice = Number.isFinite(parseFloat(current_price))
+    ? parseFloat(current_price)
+    : parsedBuyPrice;
+
   const data: Record<string, unknown> = {
     name,
     investment_type: investment_type || "Equity",
-    buy_price: parseFloat(buy_price),
-    current_price: parseFloat(current_price || buy_price),
-    quantity: parseFloat(quantity),
+    buy_price: parsedBuyPrice,
+    current_price: parsedCurrentPrice,
+    quantity: parsedQuantity,
     createdAt: FieldValue.serverTimestamp(),
   };
 

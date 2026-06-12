@@ -15,13 +15,14 @@ export async function PATCH(
   const body = await req.json();
   const allowedFields = [
     "account_name", "balance", "credit_limit", "liability", "shared_limit_with",
+    "billing_cycle_start_day", "due_days_after",
+    "reward_rate", "point_value", "reward_points_balance",
   ];
+  const stringFields = new Set(["account_name", "shared_limit_with"]);
   const updates: Record<string, unknown> = {};
   for (const key of allowedFields) {
     if (body[key] !== undefined) {
-      updates[key] = key === "account_name" || key === "shared_limit_with"
-        ? body[key]
-        : parseFloat(body[key]);
+      updates[key] = stringFields.has(key) ? body[key] : parseFloat(body[key]);
     }
   }
 

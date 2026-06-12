@@ -4,6 +4,13 @@ import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "@/lib/logger";
 import { calcNextDate } from "@/server/repos/recurring";
 
+/** Statement-due date string for a card: billing day of the month + grace days. */
+function ccDueDateStr(year: number, monthIdx: number, billingDay: number, dueDaysAfter: number): string {
+  const d = new Date(Date.UTC(year, monthIdx, billingDay));
+  d.setUTCDate(d.getUTCDate() + dueDaysAfter);
+  return d.toISOString().split("T")[0]!;
+}
+
 /**
  * POST /api/cron/recurring
  *
@@ -14,6 +21,8 @@ import { calcNextDate } from "@/server/repos/recurring";
  *      regardless of how many recurring items they have.
  *   3. Pre-fetches accounts per user once to avoid the previous N+1 pattern.
  *   4. Creates bill-due reminders for items due in 3 days (same scan).
+ *   5. Creates credit-card payment-due reminders for cards whose statement
+ *      due date (billing day + grace days) falls 3 days from now.
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -203,6 +212,57 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         errors++;
         logger.warn({ event: "cron.recurring.reminder_failed" }, err);
+      }
+    }
+
+    // ── 4. Credit-card payment-due reminders (statement due in 3 days) ──
+    const now = new Date();
+    const usersSnap = await adminDb.collection("users").select().get();
+    for (const userDoc of usersSnap.docs) {
+      const uid = userDoc.id;
+      try {
+        const cardsSnap = await adminDb
+          .collection(`users/${uid}/accounts`)
+          .where("type", "==", "credit")
+          .get();
+        for (const cardDoc of cardsSnap.docs) {
+          const card = cardDoc.data();
+          const billingDay = card.billing_cycle_start_day;
+          const dueDaysAfter = card.due_days_after;
+          const liability = Number(card.liability ?? card.balance ?? 0);
+          if (typeof billingDay !== "number" || typeof dueDaysAfter !== "number" || liability <= 0) continue;
+
+          // The statement due date can land in the previous, current, or next
+          // calendar month depending on the billing day — check all three.
+          const candidates = [
+            ccDueDateStr(now.getUTCFullYear(), now.getUTCMonth() - 1, billingDay, dueDaysAfter),
+            ccDueDateStr(now.getUTCFullYear(), now.getUTCMonth(), billingDay, dueDaysAfter),
+            ccDueDateStr(now.getUTCFullYear(), now.getUTCMonth() + 1, billingDay, dueDaysAfter),
+          ];
+          if (!candidates.includes(reminderDate)) continue;
+
+          const message = `${card.account_name} payment due in 3 days — outstanding ₹${liability.toLocaleString("en-IN")}`;
+          // Idempotency: skip if this reminder already exists.
+          const existing = await adminDb
+            .collection(`users/${uid}/notifications`)
+            .where("type", "==", "cc_due")
+            .where("message", "==", message)
+            .limit(1)
+            .get();
+          if (!existing.empty) continue;
+
+          await adminDb.collection(`users/${uid}/notifications`).add({
+            type: "cc_due",
+            title: "Credit card due soon",
+            message,
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+          reminders++;
+        }
+      } catch (err) {
+        errors++;
+        logger.warn({ event: "cron.recurring.cc_due_failed", uid }, err);
       }
     }
 

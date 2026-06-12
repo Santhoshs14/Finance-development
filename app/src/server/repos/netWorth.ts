@@ -12,7 +12,7 @@ export async function listNetWorthSnapshots(
 ): Promise<NetWorthSnapshotDoc[]> {
   const snap = await adminDb
     .collection(`users/${uid}/netWorthSnapshots`)
-    .orderBy("date", "desc")
+    .orderBy("month", "desc")
     .limit(limit)
     .get();
   return snap.docs.map((d) => snapToSerialized<NetWorthSnapshotDoc>(d));
@@ -22,25 +22,17 @@ export async function saveNetWorthSnapshot(
   uid: string,
   input: SaveNetWorthSnapshotInput
 ): Promise<string> {
-  // Replace existing snapshot for the same date (idempotent monthly run).
-  const existing = await adminDb
-    .collection(`users/${uid}/netWorthSnapshots`)
-    .where("date", "==", input.date)
-    .limit(1)
-    .get();
-
-  if (!existing.empty && existing.docs[0]) {
-    const ref = existing.docs[0].ref;
-    await ref.set(
-      { ...input, updatedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
-    return ref.id;
-  }
-
-  const ref = await adminDb.collection(`users/${uid}/netWorthSnapshots`).add({
-    ...input,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  // Keyed by month ("YYYY-MM") so the monthly run is idempotent — re-running
+  // for the same month overwrites rather than duplicating.
+  const ref = adminDb.doc(`users/${uid}/netWorthSnapshots/${input.month}`);
+  const existing = await ref.get();
+  await ref.set(
+    {
+      ...input,
+      ...(existing.exists ? {} : { createdAt: FieldValue.serverTimestamp() }),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
   return ref.id;
 }

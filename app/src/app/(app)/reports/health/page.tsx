@@ -8,6 +8,8 @@ import {
   calculatePortfolioAllocation,
   calculateSavingsRateFromAggregates,
   calculateCCUtilization,
+  getHealthPillars,
+  healthRating,
 } from "@/utils/calculations";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Heart, ShieldCheck, PiggyBank, CreditCard, Landmark, PieChart as PieIcon, type LucideIcon } from "lucide-react";
@@ -50,12 +52,15 @@ export default function FinancialHealthPage() {
     [accounts]
   );
 
-  // Calculate individual pillar scores
+  // Calculate individual pillar scores from the shared scoring util so this
+  // report and the dashboard gauge stay in lockstep.
   const pillars: Pillar[] = useMemo(() => {
+    const ph = getHealthPillars(savingsData, netWorthData, allocation);
+    const m = ph.metrics;
+
     // 1. Savings Rate (0-30 pts) — includes investment as productive savings
-    const savingsRate = savingsData.savings_rate || 0;
+    const savingsRate = m.savingsRate;
     const investmentSpend = savingsData.investmentSpend || 0;
-    const savingsScore = Math.min(30, Math.round((savingsRate / 20) * 30));
     const savingsStatus = savingsRate >= 20 ? "Excellent" : savingsRate >= 10 ? "Fair" : "Needs Work";
     const savingsColor = savingsRate >= 20 ? "#10b981" : savingsRate >= 10 ? "#f59e0b" : "#ef4444";
     const investNote = investmentSpend > 0 ? ` (includes ₹${investmentSpend.toLocaleString("en-IN")} in investments)` : "";
@@ -66,11 +71,8 @@ export default function FinancialHealthPage() {
       : `Only saving ${savingsRate.toFixed(0)}%. Review subscriptions and dining out expenses.`;
 
     // 2. Debt Health (0-30 pts)
-    const totalDebt = netWorthData.total_cc_outstanding || 0;
-    const totalAssets = (netWorthData.total_accounts || 0) + (netWorthData.total_investments || 0);
-    const debtRatio = totalAssets > 0 ? totalDebt / totalAssets : totalDebt > 0 ? 1 : 0;
-    const debtScore = Math.max(0, Math.round(30 - debtRatio * 60));
-    const _avgUtil = ccMetrics.length > 0 ? ccMetrics.reduce((s, c) => s + c.utilization_percentage, 0) / ccMetrics.length : 0;
+    const totalDebt = m.totalDebt;
+    const debtScore = ph.debt;
     const debtStatus = debtScore >= 25 ? "Excellent" : debtScore >= 15 ? "Fair" : "Needs Work";
     const debtColor = debtScore >= 25 ? "#10b981" : debtScore >= 15 ? "#f59e0b" : "#ef4444";
     const highUtilCards = ccMetrics.filter((c) => c.utilization_percentage > 30);
@@ -81,11 +83,9 @@ export default function FinancialHealthPage() {
       : "No credit card debt. Excellent!";
 
     // 3. Emergency Fund (0-20 pts)
-    const monthlyExpenses = savingsData.expenses || 0;
-    const targetEmergency = monthlyExpenses > 0 ? monthlyExpenses * 3 : 50000;
-    const currentCash = allocation.totals?.Cash || 0;
-    const emergencyScore = Math.min(20, Math.round((currentCash / targetEmergency) * 20));
-    const emergencyMonths = monthlyExpenses > 0 ? currentCash / monthlyExpenses : 0;
+    const targetEmergency = m.targetEmergencyFund;
+    const emergencyScore = ph.emergency;
+    const emergencyMonths = m.emergencyMonths;
     const emergencyStatus = emergencyMonths >= 3 ? "Excellent" : emergencyMonths >= 1 ? "Fair" : "Needs Work";
     const emergencyColor = emergencyMonths >= 3 ? "#10b981" : emergencyMonths >= 1 ? "#f59e0b" : "#ef4444";
     const emergencyAdvice = emergencyMonths >= 6
@@ -95,20 +95,18 @@ export default function FinancialHealthPage() {
       : `Only ${emergencyMonths.toFixed(1)} months of runway. Target ₹${targetEmergency.toLocaleString("en-IN")} (3 months).`;
 
     // 4. Diversification (0-20 pts)
-    const percentages = allocation.percentages || {};
-    const maxAlloc = Math.max(percentages.Equity || 0, percentages.Debt || 0, percentages.Gold || 0, percentages.Crypto || 0);
-    const diversScore = totalAssets > 0 ? (maxAlloc < 80 ? 20 : Math.max(0, Math.round(100 - maxAlloc))) : 0;
-    const assetClasses = Object.values(percentages).filter((v) => v > 5).length;
+    const diversScore = ph.diversification;
+    const assetClasses = m.assetClasses;
     const diversStatus = diversScore >= 15 ? "Excellent" : diversScore >= 8 ? "Fair" : "Needs Work";
     const diversColor = diversScore >= 15 ? "#10b981" : diversScore >= 8 ? "#f59e0b" : "#ef4444";
     const diversAdvice = assetClasses >= 3
       ? `Spread across ${assetClasses} asset classes. Well diversified.`
-      : totalAssets > 0
+      : m.totalAssets > 0
       ? `Concentrated in ${assetClasses} class(es). Consider adding Gold or Debt for balance.`
       : "No investments yet. Start with a diversified portfolio.";
 
     return [
-      { name: "Savings Rate", icon: PiggyBank, score: savingsScore, maxScore: 30, status: savingsStatus, color: savingsColor, advice: savingsAdvice },
+      { name: "Savings Rate", icon: PiggyBank, score: ph.savings, maxScore: 30, status: savingsStatus, color: savingsColor, advice: savingsAdvice },
       { name: "Debt Health", icon: CreditCard, score: debtScore, maxScore: 30, status: debtStatus, color: debtColor, advice: debtAdvice },
       { name: "Emergency Fund", icon: Landmark, score: emergencyScore, maxScore: 20, status: emergencyStatus, color: emergencyColor, advice: emergencyAdvice },
       { name: "Diversification", icon: PieIcon, score: diversScore, maxScore: 20, status: diversStatus, color: diversColor, advice: diversAdvice },
@@ -116,8 +114,7 @@ export default function FinancialHealthPage() {
   }, [savingsData, netWorthData, allocation, ccMetrics]);
 
   const totalScore = pillars.reduce((s, p) => s + p.score, 0);
-  const overallColor = totalScore >= 70 ? "#10b981" : totalScore >= 40 ? "#f59e0b" : "#ef4444";
-  const overallLabel = totalScore >= 70 ? "Excellent" : totalScore >= 40 ? "Good" : "Needs Attention";
+  const { label: overallLabel, color: overallColor } = healthRating(totalScore);
 
   return (
     <div className="space-y-6">

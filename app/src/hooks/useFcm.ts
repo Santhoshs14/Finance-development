@@ -62,7 +62,16 @@ export function useFcm() {
           return null;
         }
 
-        const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+        const reg = await navigator.serviceWorker.register(
+          `/firebase-messaging-sw.js?${new URLSearchParams({
+            apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
+            authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
+            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "",
+            messagingSenderId:
+              process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
+            appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
+          }).toString()}`
+        );
         const messaging = getMessaging(app);
         const token = await getToken(messaging, {
           vapidKey: VAPID_KEY,

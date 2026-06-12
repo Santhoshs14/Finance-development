@@ -42,6 +42,8 @@ describe("validateEnv", () => {
 
   it("does not throw when all required vars present", () => {
     process.env.FIREBASE_PROJECT_ID = "test-project";
+    process.env.FIREBASE_CLIENT_EMAIL = "admin@test-project.iam.gserviceaccount.com";
+    process.env.FIREBASE_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nx\n-----END PRIVATE KEY-----\n";
     process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "api-key";
     process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "auth.domain.com";
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "test-project";
@@ -51,6 +53,8 @@ describe("validateEnv", () => {
 
   it("warns about optional CRON_SECRET", () => {
     process.env.FIREBASE_PROJECT_ID = "test-project";
+    process.env.FIREBASE_CLIENT_EMAIL = "admin@test-project.iam.gserviceaccount.com";
+    process.env.FIREBASE_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nx\n-----END PRIVATE KEY-----\n";
     process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "api-key";
     process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "auth.domain.com";
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "test-project";
@@ -64,6 +68,8 @@ describe("validateEnv", () => {
 
   it("does not warn when optional vars are present", () => {
     process.env.FIREBASE_PROJECT_ID = "test-project";
+    process.env.FIREBASE_CLIENT_EMAIL = "admin@test-project.iam.gserviceaccount.com";
+    process.env.FIREBASE_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nx\n-----END PRIVATE KEY-----\n";
     process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "api-key";
     process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "auth.domain.com";
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "test-project";
@@ -109,6 +115,8 @@ describe("ensureEnv", () => {
     // (actual validation depends on env vars present in test environment)
     // If env vars are set, it should not throw
     process.env.FIREBASE_PROJECT_ID = "test";
+    process.env.FIREBASE_CLIENT_EMAIL = "admin@test.iam.gserviceaccount.com";
+    process.env.FIREBASE_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nx\n-----END PRIVATE KEY-----\n";
     process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "key";
     process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "domain";
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "proj";

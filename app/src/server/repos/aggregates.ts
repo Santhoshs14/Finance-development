@@ -2,6 +2,7 @@ import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import type { AggregateDoc } from "@/schemas";
 import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
+import { classifyAggregateTxn } from "@/utils/calculations";
 
 export async function getAggregate(
   uid: string,
@@ -61,14 +62,15 @@ export async function recalcAggregate(
     const data = doc.data();
     const amount = Math.abs(Number(data.amount) || 0);
     const category = String(data.category || "Uncategorized");
-    if (data.type === "expense") {
+    const cls = classifyAggregateTxn(data);
+    if (cls === "expense") {
       totalSpent += amount;
       categoryBreakdown[category] = (categoryBreakdown[category] ?? 0) + amount;
       // Track productive/investment spend separately
       if (investmentCategories.has(category)) {
         totalInvestmentSpend += amount;
       }
-    } else if (data.type === "income") {
+    } else if (cls === "income") {
       totalIncome += amount;
       categoryBreakdown.Income = (categoryBreakdown.Income ?? 0) + amount;
     }

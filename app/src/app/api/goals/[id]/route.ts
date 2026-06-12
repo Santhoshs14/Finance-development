@@ -3,6 +3,22 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await verifyAuth(req);
+  if (auth instanceof NextResponse) return auth;
+  const { uid } = auth;
+  const { id } = await params;
+
+  const doc = await adminDb.doc(`users/${uid}/goals/${id}`).get();
+  if (!doc.exists) {
+    return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+  }
+  return NextResponse.json({ goal: { id: doc.id, ...doc.data() } });
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,11 +29,12 @@ export async function PATCH(
   const { id } = await params;
 
   const body = await req.json();
-  const allowedFields = ["goal_name", "target_amount", "current_amount", "deadline"];
+  const allowedFields = ["goal_name", "target_amount", "current_amount", "deadline", "description", "linked_funds"];
+  const numericFields = new Set(["target_amount", "current_amount"]);
   const updates: Record<string, unknown> = {};
   for (const key of allowedFields) {
     if (body[key] !== undefined) {
-      updates[key] = typeof body[key] === "string" && key !== "goal_name" && key !== "deadline"
+      updates[key] = numericFields.has(key) && typeof body[key] === "string"
         ? parseFloat(body[key])
         : body[key];
     }

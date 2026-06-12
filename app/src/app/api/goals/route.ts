@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { createGoalSchema } from "@/schemas/goal";
+import { ZodError } from "zod";
 
 export async function GET(req: NextRequest) {
   const auth = await verifyAuth(req);
@@ -22,21 +24,26 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
 
-  const body = await req.json();
-  const { goal_name, target_amount, current_amount, deadline } = body;
-
-  if (!goal_name || !target_amount || !deadline) {
-    return NextResponse.json(
-      { error: "Missing required fields: goal_name, target_amount, deadline" },
-      { status: 400 }
-    );
+  let parsed;
+  try {
+    parsed = createGoalSchema.parse(await req.json());
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", code: "VALIDATION_ERROR", details: err.issues },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const data = {
-    goal_name,
-    target_amount: parseFloat(target_amount),
-    current_amount: parseFloat(current_amount || "0"),
-    deadline,
+    goal_name: parsed.goal_name,
+    target_amount: parsed.target_amount,
+    current_amount: parsed.current_amount ?? 0,
+    deadline: parsed.deadline,
+    description: parsed.description ?? "",
+    linked_funds: parsed.linked_funds ?? [],
     createdAt: FieldValue.serverTimestamp(),
   };
 
