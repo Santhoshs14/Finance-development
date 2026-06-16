@@ -23,9 +23,37 @@ describe("getFinancialMonthRange", () => {
   });
 
   it("respects custom startDay", () => {
+    const cycle = getFinancialMonthRange(6, 2025, 10);
+    expect(cycle.startDate).toBe("2025-05-10");
+    expect(cycle.endDate).toBe("2025-06-09");
+  });
+
+  it("produces a valid endDate when startDay is 1", () => {
+    // startDay=1 means the cycle ends on the last day of the previous
+    // calendar month — it must never yield an invalid "2025-06-00".
     const cycle = getFinancialMonthRange(6, 2025, 1);
     expect(cycle.startDate).toBe("2025-05-01");
-    expect(cycle.endDate).toBe("2025-06-00"); // edge case — day 0 = last day of prev month
+    expect(cycle.endDate).toBe("2025-05-31");
+  });
+
+  it("always yields parseable start/end dates for every allowed startDay", () => {
+    // cycleStartDay is validated as 1..28; no combination may produce an
+    // invalid calendar date (the old `startDay - 1` formula broke at 1).
+    for (let month = 1; month <= 12; month++) {
+      for (let startDay = 1; startDay <= 28; startDay++) {
+        const cycle = getFinancialMonthRange(month, 2025, startDay);
+        for (const d of [cycle.startDate, cycle.endDate]) {
+          expect(d).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+          const parsed = new Date(d + "T00:00:00");
+          expect(Number.isNaN(parsed.getTime())).toBe(false);
+          // Round-trips back to the same calendar date (no overflow like day 00/32).
+          const iso = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+          expect(iso).toBe(d);
+        }
+        // The cycle must be a forward, non-empty range.
+        expect(cycle.startDate < cycle.endDate).toBe(true);
+      }
+    }
   });
 });
 

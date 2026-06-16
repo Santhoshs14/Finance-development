@@ -60,11 +60,78 @@ describe.skipIf(!EMULATOR_RUNNING)("firestore.rules", () => {
     await assertSucceeds(getDoc(ref));
   });
 
-  it("lets an owner read and write an un-named (catch-all) subcollection", async () => {
+  it("lets an owner READ an un-named (catch-all) subcollection but denies client writes", async () => {
+    // Future read-models are seeded by the Admin SDK; the client may read them
+    // but the catch-all no longer grants blanket writes (so per-collection
+    // validation above cannot be bypassed via OR semantics).
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `users/${ALICE}/somethingBrandNew/x1`), {
+        foo: "bar",
+      });
+    });
     const db = testEnv.authenticatedContext(ALICE).firestore();
-    const ref = doc(db, `users/${ALICE}/somethingBrandNew/x1`);
-    await assertSucceeds(setDoc(ref, { foo: "bar" }));
-    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(getDoc(doc(db, `users/${ALICE}/somethingBrandNew/x1`)));
+    await assertFails(
+      setDoc(doc(db, `users/${ALICE}/somethingBrandNew/x2`), { foo: "bar" })
+    );
+  });
+
+  it("validates goal writes against the schema shape", async () => {
+    const db = testEnv.authenticatedContext(ALICE).firestore();
+    await assertSucceeds(
+      setDoc(doc(db, `users/${ALICE}/goals/g1`), {
+        goal_name: "Emergency Fund",
+        target_amount: 100000,
+      })
+    );
+    // Missing target_amount → denied.
+    await assertFails(
+      setDoc(doc(db, `users/${ALICE}/goals/g2`), { goal_name: "No Target" })
+    );
+    // Wrong type for target_amount → denied.
+    await assertFails(
+      setDoc(doc(db, `users/${ALICE}/goals/g3`), {
+        goal_name: "Bad",
+        target_amount: "lots",
+      })
+    );
+  });
+
+  it("validates investment writes against the schema shape", async () => {
+    const db = testEnv.authenticatedContext(ALICE).firestore();
+    await assertSucceeds(
+      setDoc(doc(db, `users/${ALICE}/investments/i1`), {
+        name: "Index Fund",
+        buy_price: 100,
+        quantity: 10,
+      })
+    );
+    // Missing quantity → denied.
+    await assertFails(
+      setDoc(doc(db, `users/${ALICE}/investments/i2`), {
+        name: "Incomplete",
+        buy_price: 100,
+      })
+    );
+  });
+
+  it("validates lending writes (enum + required fields)", async () => {
+    const db = testEnv.authenticatedContext(ALICE).firestore();
+    await assertSucceeds(
+      setDoc(doc(db, `users/${ALICE}/lending/l1`), {
+        type: "lent",
+        person_name: "Sam",
+        amount: 500,
+      })
+    );
+    // Invalid type enum → denied.
+    await assertFails(
+      setDoc(doc(db, `users/${ALICE}/lending/l2`), {
+        type: "gifted",
+        person_name: "Sam",
+        amount: 500,
+      })
+    );
   });
 
   it.each(["passkeys", "security", "audit"])(

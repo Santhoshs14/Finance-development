@@ -2,12 +2,25 @@ const CURRENCY_CONFIG: Record<string, { symbol: string; locale: string }> = {
   INR: { symbol: "₹", locale: "en-IN" },
   USD: { symbol: "$", locale: "en-US" },
   EUR: { symbol: "€", locale: "de-DE" },
+  GBP: { symbol: "£", locale: "en-GB" },
+  AED: { symbol: "AED ", locale: "en-AE" },
 };
 
 let activeCurrency = "INR";
+// Display-only conversion factor: amounts are stored in INR; when the user
+// picks another display currency we multiply by "1 INR = activeRate CCY".
+let activeRate = 1;
 
 export function setCurrencyFormat(code: string) {
   if (CURRENCY_CONFIG[code]) activeCurrency = code;
+}
+
+/**
+ * Set the INR→display-currency conversion factor (see fetch-fx cron). Pass 1
+ * (or omit) for INR / when no rate is available, leaving amounts unconverted.
+ */
+export function setCurrencyRate(rate: number) {
+  activeRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
 }
 
 function getCfg() {
@@ -26,7 +39,7 @@ export const fmt = (n: number | string): string => {
     new Intl.NumberFormat(cfg.locale, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
-    }).format(Number(n) || 0);
+    }).format((Number(n) || 0) * activeRate);
 };
 
 /**
@@ -36,7 +49,7 @@ export const fmt = (n: number | string): string => {
  *        500     → ₹500
  */
 export const fmtCompact = (n: number | string): string => {
-  const v = Number(n) || 0;
+  const v = (Number(n) || 0) * activeRate;
   const cfg = getCfg();
   if (activeCurrency === "INR") {
     if (Math.abs(v) >= 100_000)

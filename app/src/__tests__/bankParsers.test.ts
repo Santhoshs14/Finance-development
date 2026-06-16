@@ -4,6 +4,9 @@ import { sbiParser } from "@/server/parsers/sbi";
 import { iciciParser } from "@/server/parsers/icici";
 import { axisParser } from "@/server/parsers/axis";
 import { kotakParser } from "@/server/parsers/kotak";
+import { phonepeParser } from "@/server/parsers/phonepe";
+import { gpayParser } from "@/server/parsers/gpay";
+import { paytmParser } from "@/server/parsers/paytm";
 import { genericParser } from "@/server/parsers/generic";
 import { detectAndParse } from "@/server/parsers";
 
@@ -97,11 +100,70 @@ describe("Bank statement parsers", () => {
     });
   });
 
+  describe("PhonePe (UPI)", () => {
+    it("detects PhonePe header", () => {
+      expect(phonepeParser.detect("PhonePe Transaction Statement")).toBe(true);
+      expect(phonepeParser.detect("HDFC BANK")).toBe(false);
+    });
+    it("parses DEBIT/CREDIT rows with ₹", () => {
+      const text = `PhonePe Statement
+12-03-2024 Paid to Swiggy DEBIT ₹450.00
+13-03-2024 Received from John CREDIT ₹1,000.00`;
+      const txns = phonepeParser.parse(text);
+      expect(txns).toHaveLength(2);
+      expect(txns[0]!.amount).toBe(-450);
+      expect(txns[0]!.type).toBe("expense");
+      expect(txns[0]!.date).toBe("2024-03-12");
+      expect(txns[1]!.amount).toBe(1000);
+      expect(txns[1]!.type).toBe("income");
+    });
+  });
+
+  describe("Google Pay (UPI)", () => {
+    it("detects Google Pay / GPay header", () => {
+      expect(gpayParser.detect("Google Pay activity")).toBe(true);
+      expect(gpayParser.detect("GPay statement")).toBe(true);
+      expect(gpayParser.detect("Paytm")).toBe(false);
+    });
+    it("parses Debited/Credited rows", () => {
+      const text = `Google Pay
+01/06/2026 Zomato order DEBITED 350.00
+02/06/2026 Refund CREDITED 350.00`;
+      const txns = gpayParser.parse(text);
+      expect(txns).toHaveLength(2);
+      expect(txns[0]!.amount).toBe(-350);
+      expect(txns[1]!.amount).toBe(350);
+      expect(txns[0]!.date).toBe("2026-06-01");
+    });
+  });
+
+  describe("Paytm (UPI)", () => {
+    it("detects Paytm header", () => {
+      expect(paytmParser.detect("Paytm Passbook")).toBe(true);
+    });
+    it("parses DEBIT/CREDIT rows", () => {
+      const text = `Paytm Passbook
+05-06-2026 Electricity Bill DEBIT ₹1,200.50
+06-06-2026 Cashback CREDIT ₹50.00`;
+      const txns = paytmParser.parse(text);
+      expect(txns).toHaveLength(2);
+      expect(txns[0]!.amount).toBe(-1200.5);
+      expect(txns[1]!.amount).toBe(50);
+    });
+  });
+
   describe("detectAndParse", () => {
     it("auto-selects HDFC parser", () => {
       const result = detectAndParse(`HDFC BANK STATEMENT
 01/06/2026 PAYMENT 500.00 Dr`);
       expect(result.bank).toBe("HDFC Bank");
+      expect(result.matched).toBe(true);
+    });
+
+    it("auto-selects PhonePe parser", () => {
+      const result = detectAndParse(`PhonePe Statement
+12-03-2024 Paid to Swiggy DEBIT ₹450.00`);
+      expect(result.bank).toBe("PhonePe");
       expect(result.matched).toBe(true);
     });
 

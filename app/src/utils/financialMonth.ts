@@ -37,11 +37,16 @@ export const getFinancialMonthRange = (
   year: number,
   startDay: number = 25
 ): FinancialCycle => {
-  const endDay = startDay - 1;
   const startMonth = month === 1 ? 12 : month - 1;
   const startYear = month === 1 ? year - 1 : year;
   const startDate = `${startYear}-${String(startMonth).padStart(2, "0")}-${String(startDay).padStart(2, "0")}`;
-  const endDate = `${year}-${String(month).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
+  // End date is the day immediately before `startDay` of the label month.
+  // Computed with real date arithmetic so it always stays a valid calendar
+  // date — a naive `startDay - 1` yields "YYYY-MM-00" when startDay === 1
+  // (which is an allowed cycleStartDay value, 1..28).
+  const endObj = new Date(year, month - 1, startDay);
+  endObj.setDate(endObj.getDate() - 1);
+  const endDate = `${endObj.getFullYear()}-${String(endObj.getMonth() + 1).padStart(2, "0")}-${String(endObj.getDate()).padStart(2, "0")}`;
   const label = `${MONTH_NAMES[month]} ${year}`;
   const cycleKey = `${year}-${String(month).padStart(2, "0")}`;
   return { cycleKey, startDate, endDate, label, month, year };

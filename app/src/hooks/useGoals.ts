@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { goalsAPI } from "@/services/api";
-import { useData } from "@/providers/DataProvider";
+import { useData, useDataset } from "@/providers/DataProvider";
 import { Goal } from "@/utils/calculations";
 import toast from "react-hot-toast";
 
@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
  * keeps the list fresh across tabs.
  */
 export function useGoals() {
+  useDataset("goals");
   const { goals, dataReady } = useData();
   return {
     goals: goals as Goal[],

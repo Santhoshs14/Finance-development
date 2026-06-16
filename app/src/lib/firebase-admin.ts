@@ -39,3 +39,18 @@ export const adminDb = new Proxy({} as ReturnType<typeof getFirestore>, {
     return value;
   },
 });
+
+/**
+ * Mint a short-lived Google OAuth access token from the admin service-account
+ * credential. Used to call Google Cloud REST APIs that the Firebase SDK does
+ * not wrap directly (e.g. the Firestore managed-export endpoint).
+ */
+export async function getAdminAccessToken(): Promise<string> {
+  const app = getAdminApp();
+  const credential = app?.options.credential;
+  if (!credential) {
+    throw new Error("No admin credential configured");
+  }
+  const token = await credential.getAccessToken();
+  return token.access_token;
+}

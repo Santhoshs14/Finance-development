@@ -89,6 +89,21 @@ async function checkKV(opts: RateLimitOptions): Promise<RateLimitResult> {
 
 const HAS_KV = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
+// Production guard: the in-memory fallback is per-instance and does not enforce
+// limits across serverless invocations. Warn loudly at startup when KV is
+// missing in production, and allow ops to hard-fail the boot by setting
+// RATE_LIMIT_REQUIRE_KV=true if distributed rate limiting is mandatory.
+if (process.env.NODE_ENV === "production" && !HAS_KV) {
+  const msg =
+    "[rate-limit] KV is not configured (set KV_REST_API_URL + KV_REST_API_TOKEN). " +
+    "Falling back to a per-instance in-memory limiter that does NOT share state " +
+    "across serverless invocations — limits are weakly enforced in production.";
+  if (process.env.RATE_LIMIT_REQUIRE_KV === "true") {
+    throw new Error(msg);
+  }
+  console.warn(msg);
+}
+
 export function rateLimit(opts: RateLimitOptions): Promise<RateLimitResult> {
   return HAS_KV ? checkKV(opts) : checkMemory(opts);
 }

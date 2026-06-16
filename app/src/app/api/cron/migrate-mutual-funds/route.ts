@@ -1,16 +1,17 @@
 /**
- * POST /api/cron/aggregate-rollup
+ * POST /api/cron/migrate-mutual-funds
  *
- * Daily cron (01:00 UTC). Recomputes aggregates for the *previous* cycle to
- * correct any drift from interleaved writes during the day. The per-user
- * recompute is fanned out across QStash workers (see `src/server/cron/`).
+ * One-time, manually triggered migration that folds the legacy `mutualFunds`
+ * collection into the canonical `investments` collection (see
+ * `migrateMutualFundsJob`). NOT scheduled in `vercel.json` — run it once after
+ * deploying the change that drops the client-side mutualFunds merge. Idempotent
+ * and safe to re-run.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { runDispatcher } from "@/server/cron/dispatch";
-import { aggregateRollupJob } from "@/server/cron/jobs";
+import { migrateMutualFundsJob } from "@/server/cron/jobs";
 
-// Covers the inline-fallback path (no QStash) which may loop all users.
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
@@ -21,10 +22,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await runDispatcher(aggregateRollupJob);
+    const result = await runDispatcher(migrateMutualFundsJob);
     return NextResponse.json(result);
   } catch (err) {
-    logger.error({ event: "cron.aggregate_rollup.fatal" }, err);
+    logger.error({ event: "cron.migrate_mutual_funds.fatal" }, err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

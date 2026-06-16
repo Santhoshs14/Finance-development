@@ -21,8 +21,16 @@
       "schedule": "0 17 * * *"
     },
     {
+      "path": "/api/cron/fetch-fx",
+      "schedule": "30 17 * * *"
+    },
+    {
       "path": "/api/cron/net-worth-snapshot",
       "schedule": "0 18 1 * *"
+    },
+    {
+      "path": "/api/cron/backup",
+      "schedule": "0 19 * * *"
     }
   ]
 }

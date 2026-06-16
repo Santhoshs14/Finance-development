@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useData } from "@/providers/DataProvider";
+import { useData, useDataset } from "@/providers/DataProvider";
 import { transactionsAPI } from "@/services/api";
 import { useUndoDelete } from "@/hooks/useUndoDelete";
 import { getRecentFinancialMonths } from "@/utils/financialMonth";
@@ -27,6 +27,7 @@ const PAYMENT_METHODS = ["Cash", "Debit Card", "UPI", "Self Transfer"];
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
   const { accounts, creditCards, categories, investments, cycleStartDay, transactions, dataReady } = useData();
+  useDataset("investments");
 
   const [selectedCycle, setSelectedCycle] = useState(0);
   const [showAdd, setShowAdd] = useState(false);

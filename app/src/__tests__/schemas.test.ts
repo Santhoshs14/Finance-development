@@ -41,6 +41,22 @@ describe("Zod schemas — sanity coverage", () => {
     it("rejects more than 2 decimal places", () => {
       expect(() => moneyInputSchema.parse(100.123)).toThrow();
     });
+
+    it("accepts valid 2-decimal amounts that trip floating-point math", () => {
+      // Regression: `Math.round(n*100) === n*100` wrongly rejected these
+      // because e.g. 19.99 * 100 === 1998.9999999999998 in IEEE-754.
+      for (const v of [19.99, 1.1, 0.29, 0.07, 0.58, 0.1, 2.02, 999999.99]) {
+        expect(moneyInputSchema.parse(v)).toBe(v);
+      }
+      // String inputs coerce + pass too.
+      expect(moneyInputSchema.parse("19.99")).toBe(19.99);
+    });
+
+    it("still rejects 3+ decimal places near the float boundary", () => {
+      expect(() => moneyInputSchema.parse(19.999)).toThrow();
+      expect(() => moneyInputSchema.parse(0.001)).toThrow();
+      expect(() => moneyInputSchema.parse(100.125)).toThrow();
+    });
   });
 
   describe("transactions", () => {

@@ -111,7 +111,7 @@ export default function PdfImportPage() {
         <div>
           <h1 className="text-2xl font-bold">Import bank statement</h1>
           <p className="text-sm text-muted-foreground">
-            Upload a PDF statement from HDFC, SBI, ICICI, Axis, or Kotak — we&apos;ll auto-detect and parse it.
+            Upload a PDF statement from HDFC, SBI, ICICI, Axis, or Kotak, or a UPI statement from PhonePe, Google Pay, or Paytm — we&apos;ll auto-detect and parse it.
           </p>
         </div>
       </div>

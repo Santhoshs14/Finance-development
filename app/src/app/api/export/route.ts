@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
-
-const COLLECTIONS = [
-  "transactions",
-  "accounts",
-  "categories",
-  "budgetSnapshots",
-  "creditCards",
-  "emis",
-  "goals",
-  "investments",
-  "lending",
-  "recurring",
-  "splits",
-  "aggregates",
-] as const;
+import { USER_DATA_COLLECTIONS } from "@/server/userData";
 
 /**
  * GET /api/export
@@ -34,7 +20,7 @@ export async function GET(req: NextRequest) {
     const profile = profileDoc.exists ? profileDoc.data() : null;
 
     // Read each subcollection
-    for (const col of COLLECTIONS) {
+    for (const col of USER_DATA_COLLECTIONS) {
       const snap = await adminDb
         .collection(`users/${uid}/${col}`)
         .orderBy("__name__")

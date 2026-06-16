@@ -66,7 +66,7 @@ app/
 
 ### Environment variables
 
-Copy `.env.example` (create one) to `.env.local`:
+Copy `.env.example` to `.env.local` and fill in real values:
 
 ```bash
 # ── Public (safe to expose in client bundle) ──

@@ -62,19 +62,143 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
-      // ── Goals, Investments, Lending, EMIs, Recurring, Splits, Notifications,
-      //    Net Worth Snapshots, FCM Tokens, NAV history ─────────────
-      match /goals/{id} { allow read, write: if isOwner(userId); }
-      match /investments/{id} { allow read, write: if isOwner(userId); }
+      // ── Goals ────────────────────────────────────────────────
+      match /goals/{id} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.goal_name is string
+          && request.resource.data.goal_name.size() > 0
+          && request.resource.data.goal_name.size() <= 100
+          && request.resource.data.target_amount is number
+          && request.resource.data.keys().hasAll(['goal_name', 'target_amount']);
+        allow update: if isOwner(userId)
+          && (!('goal_name' in request.resource.data) || request.resource.data.goal_name is string)
+          && (!('target_amount' in request.resource.data) || request.resource.data.target_amount is number)
+          && (!('current_amount' in request.resource.data) || request.resource.data.current_amount is number);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── Investments ──────────────────────────────────────────
+      match /investments/{id} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 150
+          && request.resource.data.buy_price is number
+          && request.resource.data.quantity is number
+          && request.resource.data.keys().hasAll(['name', 'buy_price', 'quantity']);
+        allow update: if isOwner(userId)
+          && (!('buy_price' in request.resource.data) || request.resource.data.buy_price is number)
+          && (!('current_price' in request.resource.data) || request.resource.data.current_price is number)
+          && (!('quantity' in request.resource.data) || request.resource.data.quantity is number);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── Mutual Funds (legacy; migrated into investments via Admin SDK) ──
       match /mutualFunds/{id} { allow read, write: if isOwner(userId); }
-      match /lending/{id} { allow read, write: if isOwner(userId); }
-      match /emis/{id} { allow read, write: if isOwner(userId); }
-      match /recurring/{id} { allow read, write: if isOwner(userId); }
-      match /splits/{id} { allow read, write: if isOwner(userId); }
-      match /notifications/{id} { allow read, write: if isOwner(userId); }
-      match /netWorthSnapshots/{id} { allow read, write: if isOwner(userId); }
-      match /fcmTokens/{tokenHash} { allow read, write: if isOwner(userId); }
+
+      // ── Lending ──────────────────────────────────────────────
+      match /lending/{id} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.person_name is string
+          && request.resource.data.person_name.size() > 0
+          && request.resource.data.person_name.size() <= 100
+          && request.resource.data.amount is number
+          && request.resource.data.type in ['lent', 'borrowed']
+          && request.resource.data.keys().hasAll(['person_name', 'amount', 'type']);
+        allow update: if isOwner(userId)
+          && (!('amount' in request.resource.data) || request.resource.data.amount is number)
+          && (!('paid_amount' in request.resource.data) || request.resource.data.paid_amount is number)
+          && (!('type' in request.resource.data) || request.resource.data.type in ['lent', 'borrowed'])
+          && (!('status' in request.resource.data) || request.resource.data.status in ['pending', 'partial', 'completed']);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── EMIs ─────────────────────────────────────────────────
+      match /emis/{id} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.description is string
+          && request.resource.data.description.size() > 0
+          && request.resource.data.description.size() <= 200
+          && request.resource.data.totalAmount is number
+          && request.resource.data.emiAmount is number
+          && request.resource.data.keys().hasAll(['description', 'totalAmount', 'emiAmount']);
+        allow update: if isOwner(userId)
+          && (!('totalAmount' in request.resource.data) || request.resource.data.totalAmount is number)
+          && (!('emiAmount' in request.resource.data) || request.resource.data.emiAmount is number)
+          && (!('monthsPaid' in request.resource.data) || request.resource.data.monthsPaid is number);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── Recurring templates ──────────────────────────────────
+      match /recurring/{id} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.description is string
+          && request.resource.data.description.size() > 0
+          && request.resource.data.description.size() <= 200
+          && request.resource.data.amount is number
+          && request.resource.data.frequency in ['weekly', 'monthly', 'yearly']
+          && request.resource.data.keys().hasAll(['description', 'amount', 'frequency']);
+        allow update: if isOwner(userId)
+          && (!('amount' in request.resource.data) || request.resource.data.amount is number)
+          && (!('frequency' in request.resource.data) || request.resource.data.frequency in ['weekly', 'monthly', 'yearly'])
+          && (!('status' in request.resource.data) || request.resource.data.status in ['active', 'paused', 'stopped']);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── Splits ───────────────────────────────────────────────
+      match /splits/{id} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.description is string
+          && request.resource.data.description.size() > 0
+          && request.resource.data.description.size() <= 200
+          && request.resource.data.total_amount is number
+          && request.resource.data.keys().hasAll(['description', 'total_amount']);
+        allow update: if isOwner(userId)
+          && (!('total_amount' in request.resource.data) || request.resource.data.total_amount is number)
+          && (!('settled' in request.resource.data) || request.resource.data.settled is bool);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── Notifications (mostly Admin-SDK created; client marks read / deletes) ──
+      match /notifications/{id} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.message is string
+          && request.resource.data.keys().hasAll(['title', 'message']);
+        allow update: if isOwner(userId)
+          && (!('read' in request.resource.data) || request.resource.data.read is bool);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── Net-worth snapshots (written by cron via Admin SDK) ──
+      match /netWorthSnapshots/{id} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && (!('net_worth' in request.resource.data) || request.resource.data.net_worth is number)
+          && (!('month' in request.resource.data) || request.resource.data.month is string);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── FCM device tokens ────────────────────────────────────
+      match /fcmTokens/{tokenHash} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && (!('token' in request.resource.data) || request.resource.data.token is string);
+        allow delete: if isOwner(userId);
+      }
+
+      // ── NAV history (read-only; written by NAV cron via Admin SDK) ──
       match /navHistory/{path=**} { allow read: if isOwner(userId); }
+
+      // ── Profile / settings ───────────────────────────────────
       match /profile/{document=**} { allow read, write: if isOwner(userId); }
 
       // ── Audit log — read-only from client (Admin SDK writes only) ──
@@ -95,14 +219,15 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // ── Catch-all for any new subcollection we haven't named yet ──
-      // Firestore evaluates match rules with OR semantics, so this permissive
-      // rule would otherwise override the `allow write: if false` locks on
-      // passkeys/security/audit. Exclude those admin-only collections here so
-      // the locks hold. (Reads for them are still granted by their own rules.)
+      // ── Catch-all: owner may READ any future read-model subcollection. ──
+      // Writes are intentionally NOT granted here. Firestore evaluates match
+      // rules with OR semantics, so a blanket `write` would override the
+      // field-level validation on the collections above and the `write: if
+      // false` locks on passkeys/security/audit. All mutations happen
+      // server-side via the Admin SDK (which bypasses rules); the only
+      // client-side writes are to the collections explicitly allowed above.
       match /{subcollection}/{documentId=**} {
-        allow read, write: if isOwner(userId)
-          && !(subcollection in ['passkeys', 'security', 'audit']);
+        allow read: if isOwner(userId);
       }
     }
 

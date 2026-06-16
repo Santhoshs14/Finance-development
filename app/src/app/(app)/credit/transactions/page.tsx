@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useData } from "@/providers/DataProvider";
+import { useData, useDataset } from "@/providers/DataProvider";
 import { transactionsAPI } from "@/services/api";
 import { getFinancialCycle } from "@/utils/financialMonth";
 import { fmt } from "@/utils/format";
@@ -16,6 +16,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 export default function CCTransactionsPage() {
   const queryClient = useQueryClient();
   const { creditCards, transactions, categories, accounts, investments, cycleStartDay } = useData();
+  useDataset("investments");
   const [selectedCard, setSelectedCard] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
   const [editTxn, setEditTxn] = useState<Record<string, unknown> | null>(null);

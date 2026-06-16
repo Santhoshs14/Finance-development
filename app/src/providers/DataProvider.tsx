@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useRef,
   useCallback,
   useMemo,
   type ReactNode,
@@ -13,6 +14,7 @@ import { db } from "@/lib/firebase";
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   query,
   orderBy,
@@ -21,7 +23,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/providers/AuthProvider";
 import { getFinancialCycle } from "@/utils/financialMonth";
-import { setCurrencyFormat } from "@/utils/format";
+import { setCurrencyFormat, setCurrencyRate } from "@/utils/format";
 
 interface Category {
   id: string;
@@ -90,18 +92,6 @@ interface Notification {
   createdAt: string;
 }
 
-interface SplitItem {
-  id: string;
-  description: string;
-  total_amount: number;
-  date: string;
-  paid_by: string;
-  participants: { name: string; share: number }[];
-  settled: boolean;
-  settlements: { from: string; to: string; amount: number; date?: string }[];
-  createdAt?: string;
-}
-
 interface Goal {
   id: string;
   goal_name: string;
@@ -128,29 +118,6 @@ interface Investment {
   _source?: string;
 }
 
-interface LendingItem {
-  id: string;
-  type: "lent" | "borrowed";
-  person_name: string;
-  amount: number;
-  paid_amount?: number;
-  date: string;
-  description?: string;
-  status: "pending" | "partial" | "completed";
-}
-
-interface EmiItem {
-  id: string;
-  cardId?: string | null;
-  description: string;
-  totalAmount: number;
-  emiAmount: number;
-  tenure: number;
-  monthsPaid: number;
-  interestRate: number;
-  startDate: string;
-}
-
 interface Aggregate {
   totalSpent: number;
   totalIncome: number;
@@ -166,11 +133,8 @@ interface DataContextType {
   creditCards: Account[];
   recurring: RecurringItem[];
   notifications: Notification[];
-  splits: SplitItem[];
   goals: Goal[];
   investments: Investment[];
-  lending: LendingItem[];
-  emis: EmiItem[];
   cycleStartDay: number;
   monthlySalary: number;
   currency: string;
@@ -179,7 +143,12 @@ interface DataContextType {
   dataReady: boolean;
   getCategoryById: (id: string) => Category | null;
   getCategoryByName: (name: string) => Category | null;
+  /** Register interest in a lazily-loaded dataset; returns an unregister fn. */
+  registerDataset: (name: DatasetName) => () => void;
 }
+
+/** Datasets that are only subscribed to when a mounted view asks for them. */
+export type DatasetName = "investments" | "goals";
 
 const DEFAULT_CATEGORIES = [
   { name: "Investment", color: "#0080ff", classification: "investment" as const },
@@ -209,11 +178,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [recurring, setRecurring] = useState<RecurringItem[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [splits, setSplits] = useState<SplitItem[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
-  const [lending, setLending] = useState<LendingItem[]>([]);
-  const [emis, setEmis] = useState<EmiItem[]>([]);
   const [cycleStartDay, setCycleStartDay] = useState(25);
   const [monthlySalary, setMonthlySalary] = useState(0);
   const [currency, setCurrency] = useState("INR");
@@ -230,6 +196,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
     categoryBreakdown: {},
   });
 
+  // Lazily-subscribed datasets: views call useDataset(name) to opt in; the
+  // listener attaches only while at least one consumer is mounted.
+  const datasetRefs = useRef<Record<string, number>>({});
+  const [activeDatasets, setActiveDatasets] = useState<Record<string, boolean>>(
+    {}
+  );
+  const registerDataset = useCallback((name: DatasetName) => {
+    const refs = datasetRefs.current;
+    refs[name] = (refs[name] ?? 0) + 1;
+    if (refs[name] === 1) setActiveDatasets((s) => ({ ...s, [name]: true }));
+    return () => {
+      refs[name] = Math.max(0, (refs[name] ?? 1) - 1);
+      if (refs[name] === 0) setActiveDatasets((s) => ({ ...s, [name]: false }));
+    };
+  }, []);
+
   // Subscribe to Firestore
   useEffect(() => {
     const unsubscribes: (() => void)[] = [];
@@ -244,11 +226,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setCategories([]);
       setRecurring([]);
       setNotifications([]);
-      setSplits([]);
       setGoals([]);
       setInvestments([]);
-      setLending([]);
-      setEmis([]);
       setCycleStartDay(25);
       setMonthlySalary(0);
       setCurrentAggregate({ totalSpent: 0, totalIncome: 0, totalInvestmentSpend: 0, categoryBreakdown: {} });
@@ -368,82 +347,72 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })
     );
 
-    // Splits
-    unsubscribes.push(
-      onSnapshot(
-        query(collection(db, `users/${uid}/splits`), orderBy("createdAt", "desc"), limit(100)),
-        (snap) => {
-          setSplits(snap.docs.map((d) => ({ id: d.id, ...d.data() } as SplitItem)));
-        }
-      )
-    );
-
-    // Goals
-    unsubscribes.push(
-      onSnapshot(collection(db, `users/${uid}/goals`), (snap) => {
-        setGoals(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Goal)));
-      })
-    );
-
-    // Investments (also merge legacy mutualFunds for parity with API)
-    unsubscribes.push(
-      onSnapshot(collection(db, `users/${uid}/investments`), (snap) => {
-        const native = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Investment));
-        setInvestments((prev) => {
-          const legacy = prev.filter((p) => p._source === "mutualFunds");
-          return [...native, ...legacy];
-        });
-      })
-    );
-    unsubscribes.push(
-      onSnapshot(collection(db, `users/${uid}/mutualFunds`), (snap) => {
-        const legacy: Investment[] = snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            name: (data.fund_name as string) || (data.name as string) || "Untitled Fund",
-            investment_type: "Mutual Fund",
-            buy_price: (data.average_nav as number) || (data.buy_price as number) || 0,
-            current_price: (data.current_nav as number) || (data.current_price as number) || 0,
-            quantity: (data.units as number) || (data.quantity as number) || 0,
-            sip_amount: (data.sip_amount as number) || 0,
-            scheme_code: (data.scheme_code as string) || undefined,
-            fund_house: (data.fund_house as string) || undefined,
-            linked_goal_id: (data.linked_goal_id as string) ?? null,
-            account_id: (data.account_id as string) ?? null,
-            _source: "mutualFunds",
-          };
-        });
-        setInvestments((prev) => {
-          const native = prev.filter((p) => p._source !== "mutualFunds");
-          return [...native, ...legacy];
-        });
-      })
-    );
-
-    // Lending
-    unsubscribes.push(
-      onSnapshot(
-        query(collection(db, `users/${uid}/lending`), orderBy("createdAt", "desc")),
-        (snap) => {
-          setLending(snap.docs.map((d) => ({ id: d.id, ...d.data() } as LendingItem)));
-        }
-      )
-    );
-
-    // EMIs
-    unsubscribes.push(
-      onSnapshot(collection(db, `users/${uid}/emis`), (snap) => {
-        setEmis(snap.docs.map((d) => ({ id: d.id, ...d.data() } as EmiItem)));
-      })
-    );
+    // Splits, goals, lending, emis, and investments are no longer subscribed
+    // here. Those views read from dedicated React Query hooks / API routes
+    // (useGoals, useInvestments, splitsAPI, …); keeping always-on listeners for
+    // them just burned Firestore reads on every session. Investments is now a
+    // lazily-subscribed dataset (see the effect below + useDataset).
 
     return cleanup;
   }, [user]);
 
-  // Sync currency format globally
+  // Investments — lazily subscribed (only when a mounted view registers it via
+  // useDataset("investments")). Legacy `mutualFunds` are intentionally NOT
+  // merged here anymore; the API (`listInvestments`) and the one-time
+  // migration cron fold them into the canonical `investments` collection.
+  useEffect(() => {
+    if (!user || !activeDatasets.investments) {
+      setInvestments([]);
+      return;
+    }
+    const uid = user.uid;
+    const unsub = onSnapshot(
+      collection(db, `users/${uid}/investments`),
+      (snap) => {
+        setInvestments(
+          snap.docs.map((d) => ({ id: d.id, ...d.data() } as Investment))
+        );
+      }
+    );
+    return () => unsub();
+  }, [user, activeDatasets.investments]);
+
+  // Goals — lazily subscribed (only when a mounted view registers it via
+  // useDataset("goals"), e.g. through the useGoals hook).
+  useEffect(() => {
+    if (!user || !activeDatasets.goals) {
+      setGoals([]);
+      return;
+    }
+    const uid = user.uid;
+    const unsub = onSnapshot(collection(db, `users/${uid}/goals`), (snap) => {
+      setGoals(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Goal)));
+    });
+    return () => unsub();
+  }, [user, activeDatasets.goals]);
+
+  // Sync currency format + display conversion rate globally. Amounts are
+  // stored in INR; for a non-INR display currency we read the latest FX
+  // snapshot (written by the fetch-fx cron) and apply it at the display layer.
   useEffect(() => {
     setCurrencyFormat(currency);
+    if (currency === "INR") {
+      setCurrencyRate(1);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "system/fxRatesLatest"));
+        const rates = (snap.data()?.rates ?? {}) as Record<string, number>;
+        if (!cancelled) setCurrencyRate(rates[currency] ?? 1);
+      } catch {
+        if (!cancelled) setCurrencyRate(1);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [currency]);
 
   // Re-subscribe to aggregates when cycleStartDay changes
@@ -481,11 +450,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       creditCards,
       recurring,
       notifications,
-      splits,
       goals,
       investments,
-      lending,
-      emis,
       cycleStartDay,
       monthlySalary,
       currency,
@@ -494,8 +460,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       dataReady,
       getCategoryById,
       getCategoryByName,
+      registerDataset,
     }),
-    [accounts, transactions, categories, creditCards, recurring, notifications, splits, goals, investments, lending, emis, cycleStartDay, monthlySalary, currency, onboardingComplete, currentAggregate, dataReady, getCategoryById, getCategoryByName]
+    [accounts, transactions, categories, creditCards, recurring, notifications, goals, investments, cycleStartDay, monthlySalary, currency, onboardingComplete, currentAggregate, dataReady, getCategoryById, getCategoryByName, registerDataset]
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
@@ -505,4 +472,17 @@ export function useData() {
   const ctx = useContext(DataContext);
   if (!ctx) throw new Error("useData must be used within DataProvider");
   return ctx;
+}
+
+/**
+ * Opt a mounted view into a lazily-loaded dataset (e.g. "investments"). The
+ * underlying Firestore listener attaches while at least one consumer is
+ * mounted and detaches when the last one unmounts — so pages that never use
+ * the dataset don't pay for the realtime reads.
+ */
+export function useDataset(name: DatasetName) {
+  const ctx = useContext(DataContext);
+  if (!ctx) throw new Error("useDataset must be used within DataProvider");
+  const { registerDataset } = ctx;
+  useEffect(() => registerDataset(name), [registerDataset, name]);
 }

@@ -57,8 +57,9 @@ describe("getFinancialMonthRange", () => {
     it("handles start day 1", () => {
       const cycle = getFinancialMonthRange(6, 2025, 1);
       expect(cycle.startDate).toBe("2025-05-01");
-      // endDay = startDay - 1 = 0, which is edge case
-      expect(cycle.endDate).toBe("2025-06-00");
+      // startDay=1 → cycle ends on the last day of the previous month,
+      // never an invalid "2025-06-00".
+      expect(cycle.endDate).toBe("2025-05-31");
     });
 
     it("handles start day 15", () => {

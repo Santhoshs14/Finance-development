@@ -12,6 +12,18 @@ const DEV_AUTH_BYPASS =
   process.env.NODE_ENV !== "production" &&
   process.env.DEV_AUTH_BYPASS === "true";
 
+// Defense-in-depth: the flag is already ignored in production above, but if it
+// is ever set in a production environment we fail loudly at module load rather
+// than booting an app that looks fine while a dangerous flag lingers.
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.DEV_AUTH_BYPASS === "true"
+) {
+  throw new Error(
+    "DEV_AUTH_BYPASS must never be 'true' in production — remove it from the environment."
+  );
+}
+
 export interface AuthenticatedRequest extends NextRequest {
   uid: string;
 }

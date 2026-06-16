@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import CountUp from "react-countup";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useData } from "@/providers/DataProvider";
+import { useData, useDataset } from "@/providers/DataProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { db } from "@/lib/firebase";
 import { collection, doc, onSnapshot } from "firebase/firestore";
@@ -171,6 +171,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { transactions, accounts, creditCards, categories, investments, cycleStartDay, currentAggregate, recurring, dataReady } = useData();
+  useDataset("investments");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [goals, setGoals] = useState<Array<{ id: string; target_amount?: number; current_amount?: number }>>([]);
   const [mutualFunds, setMutualFunds] = useState<Array<{ id: string; current_nav?: string; units: string; invested_amount?: string }>>([]);

@@ -327,6 +327,58 @@ function DataTab() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    if (
+      !window.confirm(
+        "Restore from this backup? Existing records with matching ids will be updated and nothing is deleted. This cannot be undone."
+      )
+    )
+      return;
+    setRestoring(true);
+    try {
+      const text = await file.text();
+      let payload: unknown;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        toast.error("That file isn't valid JSON");
+        return;
+      }
+      const { auth } = await import("@/lib/firebase");
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        toast.error("Not authenticated");
+        return;
+      }
+      const res = await fetch("/api/import/restore", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Restore failed");
+      }
+      const data = await res.json();
+      const total = Object.values(
+        (data.restored ?? {}) as Record<string, number>
+      ).reduce((a, b) => a + b, 0);
+      toast.success(`Restored ${total} records`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Restore failed");
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   // CSV Import state
   const [step, setStep] = useState<ImportStep>("upload");
@@ -669,6 +721,31 @@ function DataTab() {
             </Button>
             <p className="text-xs text-muted-foreground mt-1">All data: accounts, budgets, goals, investments, and more</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Restore */}
+      <Card>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Upload className="w-4 h-4 text-brand" /> Restore Data</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Restore from a Full Backup (JSON) file you downloaded above. Records with the same id are updated; nothing is deleted. This cannot be undone.
+          </p>
+          <input
+            ref={restoreInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={handleRestoreFile}
+          />
+          <Button
+            variant="outline"
+            disabled={restoring}
+            onClick={() => restoreInputRef.current?.click()}
+            className="gap-2"
+          >
+            <Upload className="w-4 h-4" /> {restoring ? "Restoring…" : "Restore from Backup (JSON)"}
+          </Button>
         </CardContent>
       </Card>
 

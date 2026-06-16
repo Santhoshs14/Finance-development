@@ -38,7 +38,11 @@ export type Pagination = z.infer<typeof paginationSchema>;
 export const moneySchema = z
   .number()
   .finite()
-  .refine((n) => Number.isFinite(n) && Math.round(n * 100) === n * 100, {
+  // Validate "at most 2 decimal places" with an epsilon tolerance. A strict
+  // `Math.round(n * 100) === n * 100` check wrongly rejects perfectly valid
+  // amounts (e.g. 19.99, 1.1, 0.29) because floating-point makes 19.99 * 100
+  // evaluate to 1998.9999999999998.
+  .refine((n) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6, {
     message: "Amount must have at most 2 decimal places",
   });
 

@@ -51,9 +51,26 @@ Component  ──useMutations──►  authFetch  ──fetch──►  API rou
 
 `useMutations` issues optimistic React-Query mutations; the canonical update arrives via `onSnapshot` shortly after.
 
-### Cron (Vercel scheduled functions)
+### Cron (Vercel scheduled functions + QStash fan-out)
 
-Each `app/api/cron/*` route is invoked by Vercel on a schedule defined in `vercel.json`. Cron secret in the `Authorization` header. See [README.md](../README.md#crons-vercel) for the full schedule.
+Each `app/api/cron/*` route is invoked by Vercel on a schedule defined in `vercel.json`, authenticated with the cron secret in the `Authorization` header. See [README.md](../README.md#crons-vercel) for the full schedule.
+
+The user-iterating jobs (aggregate-rollup, anomaly-scan, fetch-nav, net-worth-snapshot) no longer loop every user inside a single invocation. They use a **dispatcher → worker** fan-out (`src/server/cron/`):
+
+```
+Vercel Cron ─► dispatcher route ─ job.prepare() once
+                     │
+                     ├─ cursor-paginate users (N per page)
+                     └─ QStash.publishJSON({ url: /api/cron/worker/<job>, uids })  ×pages
+                                              │  (parallel, retried, signed)
+                                              ▼
+                              worker route ─ job.processUser(uid) for each uid
+```
+
+- `prepare()` runs once (e.g. fetch-nav pulls AMFI + writes the shared `system/navIndex`); the small JSON context rides along to every worker.
+- Workers verify the `Upstash-Signature`; a page's failure returns non-2xx so QStash retries it. `processUser` is idempotent, so retries are safe.
+- **No QStash configured?** The dispatcher falls back to processing every user inline, preserving local-dev / self-host behaviour. Set `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, and `QSTASH_TARGET_BASE_URL` in production.
+- `recurring` (already a `collectionGroup` query) and `fetch-gold` (system-wide, no user loop) keep their single-invocation design.
 
 ## Real-time + offline
 
@@ -92,6 +109,6 @@ Tracked via Lighthouse CI in PRs:
 
 ## Stretch — when does this design break?
 
-- **> 1M users**: rebuild `/api/cron/*` on Cloud Tasks instead of Vercel Cron (currently single-region invocation).
+- **> 1M users**: the cron fan-out (Vercel Cron → dispatcher → QStash → worker pages) already removes the single-invocation ceiling. The next step is moving the dispatcher's user pagination onto a durable queue (Cloud Tasks / QStash schedules) so a dispatcher timeout can resume mid-scan rather than restart.
 - **> 10K transactions per user**: paginate `DataProvider.transactions` (currently limit 500 in real-time + cursor pagination via API).
 - **Multi-tenant family budgets**: needs additive Firestore rules + an invite flow. Documented but out of scope today.

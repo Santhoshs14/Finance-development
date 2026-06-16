@@ -7,6 +7,8 @@ import {
   calculateInvestmentPL,
   calculatePortfolioAllocation,
   calculateFinancialHealthScore,
+  getHealthPillars,
+  healthRating,
   calculateXIRR,
   calculateSIPGrowth,
   calculateGoalCompletion,
@@ -543,6 +545,160 @@ describe("calculateFinancialHealthScore", () => {
     );
 
     expect(diversified).toBeGreaterThan(concentrated);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// getHealthPillars - Pillar-level Tests (drives the score wrapper)
+// ═══════════════════════════════════════════════════════════════════════
+
+describe("getHealthPillars", () => {
+  it("awards full savings pillar at a 20%+ savings rate", () => {
+    const p = getHealthPillars(
+      { savings_rate: 20, expenses: 50000 },
+      { total_cc_outstanding: 0, total_accounts: 100000, total_investments: 0 },
+      { totals: { Cash: 100000 }, percentages: { Cash: 100 } }
+    );
+    expect(p.savings).toBe(30);
+  });
+
+  it("scales the savings pillar linearly and never goes negative", () => {
+    const half = getHealthPillars(
+      { savings_rate: 10, expenses: 50000 },
+      { total_cc_outstanding: 0, total_accounts: 100000, total_investments: 0 },
+      { totals: { Cash: 100000 }, percentages: { Cash: 100 } }
+    );
+    expect(half.savings).toBe(15);
+
+    const negative = getHealthPillars(
+      { savings_rate: -25, expenses: 50000 },
+      { total_cc_outstanding: 0, total_accounts: 100000, total_investments: 0 },
+      { totals: { Cash: 100000 }, percentages: { Cash: 100 } }
+    );
+    expect(negative.savings).toBe(0);
+  });
+
+  it("gives full debt pillar with zero debt and penalises high debt ratio", () => {
+    const noDebt = getHealthPillars(
+      { savings_rate: 20, expenses: 50000 },
+      { total_cc_outstanding: 0, total_accounts: 100000, total_investments: 100000 },
+      { totals: { Cash: 100000 }, percentages: { Cash: 100 } }
+    );
+    expect(noDebt.debt).toBe(30);
+    expect(noDebt.metrics.debtRatio).toBe(0);
+
+    // Debt equal to half of assets → ratio 0.5 → 30 - 0.5*60 = 0.
+    const heavyDebt = getHealthPillars(
+      { savings_rate: 20, expenses: 50000 },
+      { total_cc_outstanding: 100000, total_accounts: 100000, total_investments: 100000 },
+      { totals: { Cash: 100000 }, percentages: { Cash: 100 } }
+    );
+    expect(heavyDebt.metrics.debtRatio).toBeCloseTo(0.5, 5);
+    expect(heavyDebt.debt).toBe(0);
+  });
+
+  it("treats debt with zero assets as the worst debt ratio", () => {
+    const p = getHealthPillars(
+      { savings_rate: 0, expenses: 50000 },
+      { total_cc_outstanding: 50000, total_accounts: 0, total_investments: 0 },
+      { totals: {}, percentages: {} }
+    );
+    expect(p.metrics.debtRatio).toBe(1);
+    expect(p.debt).toBe(0);
+  });
+
+  it("computes the emergency-fund pillar against 3 months of expenses", () => {
+    // Cash exactly 3 months of expenses → full 20.
+    const funded = getHealthPillars(
+      { savings_rate: 20, expenses: 30000 },
+      { total_cc_outstanding: 0, total_accounts: 90000, total_investments: 0 },
+      { totals: { Cash: 90000 }, percentages: { Cash: 100 } }
+    );
+    expect(funded.emergency).toBe(20);
+    expect(funded.metrics.emergencyMonths).toBeCloseTo(3, 5);
+    expect(funded.metrics.targetEmergencyFund).toBe(90000);
+
+    // Half-funded → 10.
+    const partial = getHealthPillars(
+      { savings_rate: 20, expenses: 30000 },
+      { total_cc_outstanding: 0, total_accounts: 45000, total_investments: 0 },
+      { totals: { Cash: 45000 }, percentages: { Cash: 100 } }
+    );
+    expect(partial.emergency).toBe(10);
+  });
+
+  it("falls back to a 50k emergency target when expenses are unknown", () => {
+    const p = getHealthPillars(
+      { savings_rate: 20, expenses: 0 },
+      { total_cc_outstanding: 0, total_accounts: 50000, total_investments: 0 },
+      { totals: { Cash: 50000 }, percentages: { Cash: 100 } }
+    );
+    expect(p.metrics.targetEmergencyFund).toBe(50000);
+    expect(p.emergency).toBe(20);
+    expect(p.metrics.emergencyMonths).toBe(0);
+  });
+
+  it("penalises over-concentration in a single non-cash asset class", () => {
+    const concentrated = getHealthPillars(
+      { savings_rate: 20, expenses: 50000 },
+      { total_cc_outstanding: 0, total_accounts: 0, total_investments: 100000 },
+      { totals: { Equity: 100000 }, percentages: { Equity: 100 } }
+    );
+    // max non-cash allocation 100 → 100 - 100 = 0.
+    expect(concentrated.diversification).toBe(0);
+
+    const balanced = getHealthPillars(
+      { savings_rate: 20, expenses: 50000 },
+      { total_cc_outstanding: 0, total_accounts: 0, total_investments: 100000 },
+      { totals: { Equity: 50000, Debt: 50000 }, percentages: { Equity: 50, Debt: 50 } }
+    );
+    expect(balanced.diversification).toBe(20);
+  });
+
+  it("gives zero diversification when there are no assets", () => {
+    const p = getHealthPillars(
+      { savings_rate: 0, expenses: 0 },
+      { total_cc_outstanding: 0, total_accounts: 0, total_investments: 0 },
+      { totals: {}, percentages: {} }
+    );
+    expect(p.diversification).toBe(0);
+  });
+
+  it("totals the four pillars and clamps to 0..100", () => {
+    const p = getHealthPillars(
+      { savings_rate: 20, expenses: 30000 },
+      { total_cc_outstanding: 0, total_accounts: 90000, total_investments: 90000 },
+      { totals: { Cash: 90000, Equity: 45000, Debt: 45000 }, percentages: { Cash: 50, Equity: 25, Debt: 25 } }
+    );
+    expect(p.total).toBe(p.savings + p.debt + p.emergency + p.diversification);
+    expect(p.total).toBeGreaterThanOrEqual(0);
+    expect(p.total).toBeLessThanOrEqual(100);
+  });
+
+  it("stays consistent with the calculateFinancialHealthScore wrapper", () => {
+    const savings = { savings_rate: 25, expenses: 40000 };
+    const netWorth = { total_cc_outstanding: 20000, total_accounts: 150000, total_investments: 120000 };
+    const portfolio = { totals: { Cash: 120000, Equity: 90000, Debt: 60000 }, percentages: { Cash: 44.4, Equity: 33.3, Debt: 22.2 } };
+    expect(getHealthPillars(savings, netWorth, portfolio).total).toBe(
+      calculateFinancialHealthScore(savings, netWorth, null, portfolio)
+    );
+  });
+});
+
+describe("healthRating", () => {
+  it("maps scores to the right band", () => {
+    expect(healthRating(95).label).toBe("Excellent");
+    expect(healthRating(80).label).toBe("Excellent");
+    expect(healthRating(60).label).toBe("Good");
+    expect(healthRating(40).label).toBe("Fair");
+    expect(healthRating(39).label).toBe("Needs Work");
+    expect(healthRating(0).label).toBe("Needs Work");
+  });
+
+  it("returns a color for every band", () => {
+    for (const s of [0, 40, 60, 80, 100]) {
+      expect(healthRating(s).color).toMatch(/^#[0-9a-f]{6}$/i);
+    }
   });
 });
 

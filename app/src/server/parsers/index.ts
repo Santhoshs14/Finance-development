@@ -10,6 +10,9 @@ import { sbiParser } from "./sbi";
 import { iciciParser } from "./icici";
 import { axisParser } from "./axis";
 import { kotakParser } from "./kotak";
+import { phonepeParser } from "./phonepe";
+import { gpayParser } from "./gpay";
+import { paytmParser } from "./paytm";
 import { genericParser } from "./generic";
 
 export interface ParsedTransaction {
@@ -33,6 +36,9 @@ const PARSERS: BankParser[] = [
   iciciParser,
   axisParser,
   kotakParser,
+  phonepeParser,
+  gpayParser,
+  paytmParser,
 ];
 
 export interface DetectionResult {

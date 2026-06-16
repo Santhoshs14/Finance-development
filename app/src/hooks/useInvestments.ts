@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { investmentsAPI } from "@/services/api";
-import { useData } from "@/providers/DataProvider";
+import { useData, useDataset } from "@/providers/DataProvider";
 import { Investment } from "@/utils/calculations";
 import toast from "react-hot-toast";
 
@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
  * Live investments subscription via DataProvider.
  */
 export function useInvestments() {
+  useDataset("investments");
   const { investments, dataReady } = useData();
   return {
     investments: investments as Investment[],
