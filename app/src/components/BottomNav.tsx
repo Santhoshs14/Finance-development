@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { href: "/", icon: Home, label: "Home" },
   { href: "/money/transactions", icon: Wallet, label: "Money" },
   { href: "/spending/budgets", icon: ShoppingCart, label: "Spend" },
-  { href: "/wealth/portfolio", icon: TrendingUp, label: "Wealth" },
+  { href: "/investments", icon: TrendingUp, label: "Invest" },
 ];
 
 interface BottomNavProps {

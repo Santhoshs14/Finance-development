@@ -3,7 +3,7 @@
 ## Daily check (5 min)
 
 1. **Sentry** — open project → "Issues this 24h" should be empty / triaged.
-2. **Vercel Cron** — Project → Deployments → Cron runs. All 6 jobs should show "Success" within their windows.
+2. **Vercel Cron** — Project → Deployments → Cron runs. All jobs should show "Success" within their windows.
 3. **Firestore usage** — Firebase Console → Usage. Reads and writes should track linearly with active user count.
 
 ## Cron schedule (UTC)
@@ -15,6 +15,7 @@
 | Anomaly scan (weekly)              | `0 4 * * 0`    | `/api/cron/anomaly-scan`             | No alerts for one week                             |
 | AMFI NAV fetch                     | `30 16 * * *`  | `/api/cron/fetch-nav`                | Investments show stale `current_price` & `last_nav_update` |
 | Gold price fetch                   | `0 17 * * *`   | `/api/cron/fetch-gold`               | Falls back to last-known cached value              |
+| SIP execution (after NAV)          | `0 18 * * *`   | `/api/cron/sip`                      | Due SIPs run next day; user notified on execution  |
 | Monthly net-worth snapshot         | `0 18 1 * *`   | `/api/cron/net-worth-snapshot`       | Missing one monthly data point in the chart        |
 
 All cron handlers respond to `GET` and `POST`. `Authorization: Bearer ${CRON_SECRET}` is required.
@@ -41,7 +42,7 @@ curl -X POST \
   https://yourdomain.com/api/cron/worker/net-worth-snapshot
 ```
 
-`recurring` and `fetch-gold` are single-invocation and have no worker route.
+`recurring`, `fetch-gold`, and `sip` are single-invocation and have no worker route.
 
 ## Incident response
 

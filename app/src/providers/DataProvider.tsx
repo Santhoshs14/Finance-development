@@ -118,6 +118,25 @@ interface Investment {
   _source?: string;
 }
 
+interface Sip {
+  id: string;
+  investment_id?: string | null;
+  scheme_code: string;
+  fund_name: string;
+  fund_house?: string | null;
+  amount: number;
+  frequency: "weekly" | "monthly" | "yearly";
+  day_of_month?: number;
+  next_date: string;
+  account_id: string;
+  linked_goal_id?: string | null;
+  status: "active" | "paused" | "stopped";
+  last_executed?: string | null;
+  installments_done?: number;
+  total_invested?: number;
+  total_units?: number;
+}
+
 interface Aggregate {
   totalSpent: number;
   totalIncome: number;
@@ -135,6 +154,7 @@ interface DataContextType {
   notifications: Notification[];
   goals: Goal[];
   investments: Investment[];
+  sips: Sip[];
   cycleStartDay: number;
   monthlySalary: number;
   currency: string;
@@ -148,7 +168,7 @@ interface DataContextType {
 }
 
 /** Datasets that are only subscribed to when a mounted view asks for them. */
-export type DatasetName = "investments" | "goals";
+export type DatasetName = "investments" | "goals" | "sips";
 
 const DEFAULT_CATEGORIES = [
   { name: "Investment", color: "#0080ff", classification: "investment" as const },
@@ -180,6 +200,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [sips, setSips] = useState<Sip[]>([]);
   const [cycleStartDay, setCycleStartDay] = useState(25);
   const [monthlySalary, setMonthlySalary] = useState(0);
   const [currency, setCurrency] = useState("INR");
@@ -228,6 +249,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setNotifications([]);
       setGoals([]);
       setInvestments([]);
+      setSips([]);
       setCycleStartDay(25);
       setMonthlySalary(0);
       setCurrentAggregate({ totalSpent: 0, totalIncome: 0, totalInvestmentSpend: 0, categoryBreakdown: {} });
@@ -391,6 +413,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [user, activeDatasets.goals]);
 
+  // SIPs — lazily subscribed (only when a mounted view registers it via
+  // useDataset("sips"), e.g. through the useSips hook on the Mutual Funds page).
+  useEffect(() => {
+    if (!user || !activeDatasets.sips) {
+      setSips([]);
+      return;
+    }
+    const uid = user.uid;
+    const unsub = onSnapshot(collection(db, `users/${uid}/sips`), (snap) => {
+      setSips(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sip)));
+    });
+    return () => unsub();
+  }, [user, activeDatasets.sips]);
+
   // Sync currency format + display conversion rate globally. Amounts are
   // stored in INR; for a non-INR display currency we read the latest FX
   // snapshot (written by the fetch-fx cron) and apply it at the display layer.
@@ -452,6 +488,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       notifications,
       goals,
       investments,
+      sips,
       cycleStartDay,
       monthlySalary,
       currency,
@@ -462,7 +499,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       getCategoryByName,
       registerDataset,
     }),
-    [accounts, transactions, categories, creditCards, recurring, notifications, goals, investments, cycleStartDay, monthlySalary, currency, onboardingComplete, currentAggregate, dataReady, getCategoryById, getCategoryByName, registerDataset]
+    [accounts, transactions, categories, creditCards, recurring, notifications, goals, investments, sips, cycleStartDay, monthlySalary, currency, onboardingComplete, currentAggregate, dataReady, getCategoryById, getCategoryByName, registerDataset]
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

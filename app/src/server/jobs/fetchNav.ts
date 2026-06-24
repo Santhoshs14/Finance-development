@@ -14,6 +14,8 @@ import { logger } from "@/lib/logger";
 export interface NavEntry {
   schemeCode: string;
   schemeName: string;
+  /** Lowercased scheme name; powers the prefix-search API. */
+  schemeNameLower: string;
   nav: number;
   date: string; // YYYY-MM-DD
   fundHouse: string;
@@ -76,10 +78,12 @@ export function parseAmfiNav(text: string): NavEntry[] {
     if (!schemeCode || !schemeName || !navStr || !dateStr) continue;
     const nav = parseFloat(navStr);
     if (isNaN(nav) || nav <= 0) continue;
+    const name = schemeName.trim();
     out.push({
       schemeCode,
       isin: isin1 && isin1 !== "-" ? isin1 : undefined,
-      schemeName: schemeName.trim(),
+      schemeName: name,
+      schemeNameLower: name.toLowerCase(),
       nav,
       date: normalizeDate(dateStr.trim()),
       fundHouse: currentFundHouse,

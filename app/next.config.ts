@@ -121,6 +121,16 @@ const nextConfig: NextConfig = {
       { source: "/(.*)", headers: securityHeaders },
     ];
   },
+  async redirects() {
+    // The Wealth section was renamed to Investments. Permanently redirect the
+    // old routes; specific overrides must precede the catch-all wildcard.
+    return [
+      { source: "/wealth", destination: "/investments", permanent: true },
+      { source: "/wealth/portfolio", destination: "/investments", permanent: true },
+      { source: "/wealth/sips", destination: "/investments/mutual-funds", permanent: true },
+      { source: "/wealth/:path*", destination: "/investments/:path*", permanent: true },
+    ];
+  },
 };
 
 const sentryOptions = {

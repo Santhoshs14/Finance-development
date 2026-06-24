@@ -59,7 +59,7 @@ export const generateInsightsFromAggregates = (
       title: "Investment This Month",
       message: `You invested ₹${totalInvestmentSpend.toLocaleString("en-IN")} (${investPercent}% of income). This counts toward your savings!`,
       actionLabel: "View Portfolio",
-      actionPath: "/wealth/portfolio",
+      actionPath: "/investments",
     });
   }
 

@@ -243,6 +243,7 @@ export const fetchNavJob: CronJob<{ entries: number; date: string | null }> = {
         batch.set(adminDb.doc(`system/navIndex/funds/${e.schemeCode}`), {
           schemeCode: e.schemeCode,
           schemeName: e.schemeName,
+          schemeNameLower: e.schemeNameLower,
           fundHouse: e.fundHouse,
           isin: e.isin ?? null,
           nav: e.nav,

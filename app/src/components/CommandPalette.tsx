@@ -7,7 +7,7 @@ import { useData } from "@/providers/DataProvider";
 import { fmt } from "@/utils/format";
 import {
   Home, Landmark, ArrowUpDown, ArrowLeftRight, CalendarClock, Handshake,
-  PieChart, Tags, BarChart3,
+  PieChart, Tags, BarChart3, LayoutDashboard,
   CreditCard, FileText, Gift, Calculator, Lightbulb,
   TrendingUp, TrendingDown, Repeat, Target, LineChart, Gem,
   CalendarDays, Calendar, Heart, Shield, Split,
@@ -54,14 +54,15 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: "Wealth",
+    label: "Investments",
     items: [
-      { label: "Portfolio", href: "/wealth/portfolio", icon: TrendingUp },
-      { label: "SIPs", href: "/wealth/sips", icon: Repeat },
-      { label: "Goals", href: "/wealth/goals", icon: Target },
-      { label: "Net Worth", href: "/wealth/net-worth", icon: LineChart },
-      { label: "Gold", href: "/wealth/gold", icon: Gem },
-      { label: "Retirement", href: "/wealth/retirement", icon: Calculator },
+      { label: "Overview", href: "/investments", icon: LayoutDashboard },
+      { label: "Mutual Funds", href: "/investments/mutual-funds", icon: TrendingUp },
+      { label: "Gold", href: "/investments/gold", icon: Gem },
+      { label: "Other", href: "/investments/other", icon: Landmark },
+      { label: "Goals", href: "/investments/goals", icon: Target },
+      { label: "Net Worth", href: "/investments/net-worth", icon: LineChart },
+      { label: "Retirement", href: "/investments/retirement", icon: Calculator },
     ],
   },
   {
@@ -135,11 +136,11 @@ export default function CommandPalette() {
           b: "/spending/budgets",
           a: "/money/accounts",
           c: "/credit",
-          w: "/wealth/portfolio",
+          w: "/investments",
           r: "/reports/monthly",
           s: "/settings",
           l: "/money/lending",
-          g: "/wealth/goals",
+          g: "/investments/goals",
         };
         if (routes[e.key]) router.push(routes[e.key]);
       }

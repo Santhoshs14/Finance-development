@@ -7,13 +7,29 @@ export const investmentTypeSchema = z.enum([
   "Gold",
   "Bond",
   "FD",
+  "RD",
   "PPF",
+  "EPF",
   "NPS",
   "ELSS",
+  "Real Estate",
+  "Crypto",
   "Other",
 ]);
 
 export const goldFormSchema = z.enum(["digital", "physical", "sgb", "etf"]);
+
+/** Interest compounding cadence for fixed-income instruments (FD/RD/Bonds). */
+export const compoundingSchema = z.enum([
+  "simple",
+  "monthly",
+  "quarterly",
+  "halfyearly",
+  "annually",
+]);
+
+/** Whether interest is paid out periodically or reinvested until maturity. */
+export const interestPayoutSchema = z.enum(["cumulative", "payout"]);
 
 export const createInvestmentSchema = z.object({
   name: z.string().min(1).max(150),
@@ -38,6 +54,16 @@ export const createInvestmentSchema = z.object({
   weight_grams: moneyInputSchema.optional(),
   making_charges: moneyInputSchema.optional(),
   purchase_date: z.string().optional(),
+  // Manual "Other" instruments (FD/RD/PPF/EPF/NPS/Bonds/Real Estate/Crypto)
+  interest_rate: z.number().min(0).max(100).optional(),
+  start_date: z.string().optional(),
+  maturity_date: z.string().optional(),
+  institution: z.string().max(150).optional(),
+  compounding: compoundingSchema.optional(),
+  interest_payout: interestPayoutSchema.optional(),
+  // Mutual-fund NAV bookkeeping (set by the fetch-nav cron / SIP engine)
+  nav_date: z.string().optional(),
+  last_nav_update: z.string().optional(),
 });
 
 export type CreateInvestmentInput = z.infer<typeof createInvestmentSchema>;
@@ -72,9 +98,21 @@ export const investmentDocSchema = z.object({
   weight_grams: z.number().optional(),
   making_charges: z.number().optional(),
   purchase_date: z.string().optional(),
+  // Manual "Other" instruments
+  interest_rate: z.number().optional(),
+  start_date: z.string().optional(),
+  maturity_date: z.string().optional(),
+  institution: z.string().optional(),
+  compounding: compoundingSchema.optional(),
+  interest_payout: interestPayoutSchema.optional(),
+  // Mutual-fund NAV bookkeeping
+  nav_date: z.string().optional(),
+  last_nav_update: z.string().optional(),
   // Computed/alternative value fields used by UI
   invested_amount: z.number().optional(),
   current_value: z.number().optional(),
+  // SIP linkage (UI convenience; populated from the sips collection)
+  has_active_sip: z.boolean().optional(),
 });
 
 export type InvestmentDoc = z.infer<typeof investmentDocSchema>;

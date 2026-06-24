@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   Home,
   Landmark,
+  LayoutDashboard,
   ArrowUpDown,
   ArrowLeftRight,
   CalendarClock,
@@ -100,16 +101,17 @@ const sections: NavSection[] = [
     ],
   },
   {
-    id: "wealth",
-    label: "Wealth",
+    id: "investments",
+    label: "Investments",
     icon: TrendingUp,
     items: [
-      { label: "Portfolio", path: "/wealth/portfolio", icon: TrendingUp },
-      { label: "Gold", path: "/wealth/gold", icon: Gem },
-      { label: "SIPs", path: "/wealth/sips", icon: Repeat },
-      { label: "Goals", path: "/wealth/goals", icon: Target },
-      { label: "Net Worth", path: "/wealth/net-worth", icon: LineChart },
-      { label: "Retirement", path: "/wealth/retirement", icon: Calculator },
+      { label: "Overview", path: "/investments", icon: LayoutDashboard },
+      { label: "Mutual Funds", path: "/investments/mutual-funds", icon: TrendingUp },
+      { label: "Gold", path: "/investments/gold", icon: Gem },
+      { label: "Other", path: "/investments/other", icon: Landmark },
+      { label: "Goals", path: "/investments/goals", icon: Target },
+      { label: "Net Worth", path: "/investments/net-worth", icon: LineChart },
+      { label: "Retirement", path: "/investments/retirement", icon: Calculator },
     ],
   },
   {

@@ -105,9 +105,13 @@ export async function POST(req: NextRequest) {
           const accountId = item.account_id as string | null;
           const amount = Math.abs(item.amount as number);
           const type: "income" | "expense" = item.type === "income" ? "income" : "expense";
+          // Store the SIGNED amount (negative=expense, positive=income) to match
+          // POST /api/transactions. Balance/aggregate math below uses `amount`
+          // (absolute) + `type`, so only the persisted field needs the sign.
+          const signedAmount = type === "expense" ? -amount : amount;
 
           batch.set(txnRef, {
-            amount,
+            amount: signedAmount,
             type,
             category: item.category,
             account_id: accountId || "",

@@ -98,6 +98,23 @@ service cloud.firestore {
       // ── Mutual Funds (legacy; migrated into investments via Admin SDK) ──
       match /mutualFunds/{id} { allow read, write: if isOwner(userId); }
 
+      // ── SIPs (systematic investment plans) ───────────────────
+      match /sips/{id} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.frequency in ['weekly', 'monthly', 'yearly']
+          && request.resource.data.scheme_code is string
+          && request.resource.data.scheme_code.size() > 0
+          && request.resource.data.keys().hasAll(['amount', 'frequency', 'scheme_code', 'next_date', 'account_id']);
+        allow update: if isOwner(userId)
+          && (!('amount' in request.resource.data) || request.resource.data.amount is number)
+          && (!('frequency' in request.resource.data) || request.resource.data.frequency in ['weekly', 'monthly', 'yearly'])
+          && (!('status' in request.resource.data) || request.resource.data.status in ['active', 'paused', 'stopped']);
+        allow delete: if isOwner(userId);
+      }
+
       // ── Lending ──────────────────────────────────────────────
       match /lending/{id} {
         allow read: if isOwner(userId);

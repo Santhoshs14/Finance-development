@@ -13,6 +13,7 @@ export * from "./category";
 export * from "./budget";
 export * from "./goal";
 export * from "./investment";
+export * from "./sip";
 export * from "./lending";
 export * from "./emi";
 export * from "./split";

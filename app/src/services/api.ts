@@ -241,6 +241,56 @@ export const investmentsAPI = {
   },
 };
 
+// ─── SIPs (systematic investment plans) ─────────────────────────
+
+export const sipsAPI = {
+  async list() {
+    const res = await authFetch("/api/sips");
+    return res.json();
+  },
+
+  async create(data: Record<string, unknown>) {
+    const res = await authFetch("/api/sips", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async update(id: string, data: Record<string, unknown>) {
+    const res = await authFetch(`/api/sips/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async delete(id: string) {
+    const res = await authFetch(`/api/sips/${id}`, {
+      method: "DELETE",
+    });
+    return res.json();
+  },
+
+  async executeNow(id: string) {
+    const res = await authFetch(`/api/sips/${id}/execute`, {
+      method: "POST",
+    });
+    return res.json();
+  },
+};
+
+// ─── Mutual-fund scheme search (AMFI index) ─────────────────────
+
+export const fundsAPI = {
+  async search(q: string) {
+    const res = await authFetch(
+      `/api/investments/funds/search?q=${encodeURIComponent(q)}`
+    );
+    return res.json();
+  },
+};
+
 // ─── Lending ────────────────────────────────────────────────────
 
 export const lendingAPI = {

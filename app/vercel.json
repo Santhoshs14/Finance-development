@@ -25,6 +25,10 @@
       "schedule": "30 17 * * *"
     },
     {
+      "path": "/api/cron/sip",
+      "schedule": "0 18 * * *"
+    },
+    {
       "path": "/api/cron/net-worth-snapshot",
       "schedule": "0 18 1 * *"
     },

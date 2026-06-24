@@ -17,6 +17,8 @@ import {
   Badge,
 } from "@/components/ui";
 import EmptyState from "@/components/EmptyState";
+import { useSips } from "@/hooks/useSips";
+import Link from "next/link";
 import {
   Plus,
   Pause,
@@ -86,6 +88,11 @@ function getDaysUntil(dateStr: string): number {
 
 export default function RecurringPage() {
   const { recurring, categories, accounts, transactions, dataReady } = useData();
+  const { sips } = useSips();
+  const activeSips = useMemo(
+    () => sips.filter((s) => s.status === "active"),
+    [sips]
+  );
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -452,6 +459,36 @@ export default function RecurringPage() {
           ))}
         </div>
       </div>
+
+      {/* SIPs (managed on the Mutual Funds tab; shown here for visibility) */}
+      {activeSips.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Repeat className="w-4 h-4 text-brand" /> Investment SIPs
+            </CardTitle>
+            <Link
+              href="/investments/mutual-funds"
+              className="text-xs font-medium text-brand hover:underline"
+            >
+              Manage
+            </Link>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            {activeSips.map((sip) => (
+              <div key={sip.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="flex items-center gap-2 min-w-0">
+                  <Badge className="bg-brand/10 text-brand border-brand/20">SIP</Badge>
+                  <span className="truncate text-foreground">{sip.fund_name}</span>
+                </span>
+                <span className="text-muted-foreground whitespace-nowrap">
+                  {fmt(sip.amount)} · {FREQ_LABEL[sip.frequency]} · next {sip.next_date}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recurring List */}
       {filtered.length === 0 ? (

@@ -34,6 +34,15 @@ export interface Investment {
   form?: "digital" | "physical" | "sgb" | "etf";
   purchase_date?: string;
   making_charges?: number;
+  // Manual "Other" instruments + NAV bookkeeping
+  interest_rate?: number;
+  start_date?: string;
+  maturity_date?: string;
+  institution?: string;
+  compounding?: string;
+  interest_payout?: string;
+  nav_date?: string;
+  last_nav_update?: string;
 }
 
 export interface LendingItem {
@@ -254,6 +263,61 @@ export const calculateInvestmentPL = (investments: Investment[]) => {
   });
 };
 
+/** Number of whole days from today until a maturity date (negative if past). */
+export const daysToMaturity = (maturityDate?: string): number | null => {
+  if (!maturityDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const mat = new Date(`${maturityDate}T00:00:00`);
+  if (isNaN(mat.getTime())) return null;
+  return Math.round((mat.getTime() - today.getTime()) / 86_400_000);
+};
+
+const COMPOUNDING_N: Record<string, number> = {
+  simple: 0,
+  monthly: 12,
+  quarterly: 4,
+  halfyearly: 2,
+  annually: 1,
+};
+
+/**
+ * Projected maturity value of a lump-sum deposit (FD / PPF / Bond). `simple`
+ * uses simple interest; any other cadence compounds at that frequency.
+ */
+export const projectMaturityValue = (
+  principal: number,
+  annualRatePct: number,
+  years: number,
+  compounding: string = "quarterly"
+): number => {
+  if (!(principal > 0) || !(annualRatePct > 0) || !(years > 0)) {
+    return r(principal || 0);
+  }
+  const rate = annualRatePct / 100;
+  if (compounding === "simple") return r(principal * (1 + rate * years));
+  const n = COMPOUNDING_N[compounding] ?? 4;
+  return r(principal * Math.pow(1 + rate / n, n * years));
+};
+
+/**
+ * Projected maturity value of a recurring deposit — `monthlyDeposit` paid for
+ * `months`, accrued monthly (approximates the standard Indian RD convention).
+ */
+export const projectRecurringDepositValue = (
+  monthlyDeposit: number,
+  annualRatePct: number,
+  months: number
+): number => {
+  if (!(monthlyDeposit > 0) || !(months > 0)) return 0;
+  const monthlyRate = annualRatePct / 100 / 12;
+  let value = 0;
+  for (let i = 0; i < months; i++) {
+    value = (value + monthlyDeposit) * (1 + monthlyRate);
+  }
+  return r(value);
+};
+
 export const calculatePortfolioAllocation = (
   accounts: Account[],
   investments: Investment[]
@@ -263,6 +327,7 @@ export const calculatePortfolioAllocation = (
     Debt: 0,
     Gold: 0,
     Crypto: 0,
+    "Real Estate": 0,
     Cash: 0,
   };
 
@@ -277,9 +342,20 @@ export const calculatePortfolioAllocation = (
       inv.current_price * inv.quantity || inv.current_value || inv.value || 0;
     const type = (inv.investment_type || "Equity").toLowerCase();
 
-    if (type.includes("debt") || type.includes("bond")) totals.Debt += value;
+    if (
+      type.includes("debt") ||
+      type.includes("bond") ||
+      type === "fd" ||
+      type === "rd" ||
+      type === "ppf" ||
+      type === "epf" ||
+      type === "nps"
+    )
+      totals.Debt += value;
     else if (type.includes("gold")) totals.Gold += value;
     else if (type.includes("crypto")) totals.Crypto += value;
+    else if (type.includes("real estate") || type.includes("realty"))
+      totals["Real Estate"] += value;
     else totals.Equity += value;
   });
 
@@ -290,7 +366,7 @@ export const calculatePortfolioAllocation = (
   if (totalValue === 0)
     return {
       totals,
-      percentages: { Equity: 0, Debt: 0, Gold: 0, Crypto: 0, Cash: 0 },
+      percentages: { Equity: 0, Debt: 0, Gold: 0, Crypto: 0, "Real Estate": 0, Cash: 0 },
       totalValue: 0,
     };
 
@@ -299,6 +375,7 @@ export const calculatePortfolioAllocation = (
     Debt: parseFloat(((totals.Debt / totalValue) * 100).toFixed(2)),
     Gold: parseFloat(((totals.Gold / totalValue) * 100).toFixed(2)),
     Crypto: parseFloat(((totals.Crypto / totalValue) * 100).toFixed(2)),
+    "Real Estate": parseFloat(((totals["Real Estate"] / totalValue) * 100).toFixed(2)),
     Cash: parseFloat(((totals.Cash / totalValue) * 100).toFixed(2)),
   };
   return { totals, percentages, totalValue };
@@ -366,7 +443,8 @@ export const getHealthPillars = (
     percentages.Equity || 0,
     percentages.Debt || 0,
     percentages.Gold || 0,
-    percentages.Crypto || 0
+    percentages.Crypto || 0,
+    percentages["Real Estate"] || 0
   );
   const diversification =
     totalAssets > 0

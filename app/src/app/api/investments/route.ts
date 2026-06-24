@@ -86,6 +86,13 @@ export async function POST(req: NextRequest) {
   if (body.weight_grams != null) data.weight_grams = parseFloat(String(body.weight_grams));
   if (body.making_charges != null) data.making_charges = parseFloat(String(body.making_charges));
   if (body.purchase_date) data.purchase_date = body.purchase_date;
+  // Manual "Other" instruments (FD/RD/PPF/EPF/NPS/Bonds/Real Estate/Crypto)
+  if (body.interest_rate != null) data.interest_rate = parseFloat(String(body.interest_rate));
+  if (body.start_date) data.start_date = body.start_date;
+  if (body.maturity_date) data.maturity_date = body.maturity_date;
+  if (body.institution) data.institution = body.institution;
+  if (body.compounding) data.compounding = body.compounding;
+  if (body.interest_payout) data.interest_payout = body.interest_payout;
 
   const ref = await adminDb.collection(`users/${uid}/investments`).add(data);
   return NextResponse.json({ id: ref.id, message: "Investment created" }, { status: 201 });
