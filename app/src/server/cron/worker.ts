@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
 import { logger } from "@/lib/logger";
+import { verifyCronAuth } from "@/lib/cron-auth";
 import { CRON_JOBS } from "./jobs";
 
 function receiver(): Receiver | null {
@@ -43,11 +44,8 @@ export async function handleWorker(
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   } else {
-    const cronSecret = process.env.CRON_SECRET;
-    const authHeader = req.headers.get("authorization");
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const unauthorized = verifyCronAuth(req);
+    if (unauthorized) return unauthorized;
   }
 
   let body: WorkerBody;

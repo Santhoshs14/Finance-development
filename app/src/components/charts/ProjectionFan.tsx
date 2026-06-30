@@ -36,7 +36,9 @@ export interface ProjectionFanProps {
  * inset area for the low band (rendered as background gap), and a
  * bold line for the median forecast.
  */
-export function ProjectionFan({ data, height = 280 }: ProjectionFanProps) {
+export const ProjectionFan = React.memo(ProjectionFanBase);
+
+function ProjectionFanBase({ data, height = 280 }: ProjectionFanProps) {
   if (!data.length) {
     return (
       <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">

@@ -82,7 +82,7 @@ export type TransactionDoc = z.infer<typeof transactionDocSchema>;
 export const transactionListQuerySchema = z.object({
   cycleKey: cycleKeySchema.optional().nullable(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
-  cursor: z.string().nullish(),
+  cursor: firestoreIdSchema.nullish(),
   type: transactionTypeSchema.optional().nullable(),
   category: z.string().optional().nullable(),
   account_id: z.string().optional().nullable(),

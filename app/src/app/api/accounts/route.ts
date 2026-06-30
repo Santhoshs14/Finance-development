@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { createAccountSchema } from "@/schemas/account";
+import { zodErrorResponse } from "@/lib/api-handler";
 
 export async function GET(req: NextRequest) {
   const auth = await verifyAuth(req);
@@ -27,14 +29,9 @@ export async function POST(req: NextRequest) {
   const { uid } = auth;
 
   const body = await req.json();
+  const parsed = createAccountSchema.safeParse(body);
+  if (!parsed.success) return zodErrorResponse(parsed.error);
   const { account_name, type, balance, credit_limit, liability, shared_limit_with } = body;
-
-  if (!account_name || !type) {
-    return NextResponse.json(
-      { error: "Missing required fields: account_name, type" },
-      { status: 400 }
-    );
-  }
 
   const data: Record<string, unknown> = {
     account_name,

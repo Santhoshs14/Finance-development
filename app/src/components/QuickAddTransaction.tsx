@@ -6,6 +6,8 @@ import { X, Sparkles, Landmark, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
 import { investmentsAPI } from "@/services/api";
+import { suggestCategory as suggestCategoryEngine, type CategoryRule } from "@/utils/categorization";
+import { loadLearnedRules, learnCategoryRule } from "@/lib/learnedCategories";
 
 const getLocalISODate = () => {
   const tzOffset = new Date().getTimezoneOffset() * 60000;
@@ -24,22 +26,6 @@ const defaultForm = {
   recurrence_interval: "monthly",
   linked_investment_id: "",
 };
-
-const KEYWORD_MAP = [
-  { keywords: ["swiggy", "zomato", "mcdonalds", "kfc", "pizza", "burger", "food", "restaurant", "cafe", "lunch", "dinner", "breakfast"], category: "Food" },
-  { keywords: ["uber", "ola", "rapido", "auto", "cab", "taxi", "metro", "bus", "train", "flight", "petrol", "fuel", "toll"], category: "Travel" },
-  { keywords: ["netflix", "prime", "hotstar", "spotify", "youtube", "subscription"], category: "Subscription" },
-  { keywords: ["amazon", "flipkart", "myntra", "shop", "buy", "order", "purchase", "clothes"], category: "Shopping" },
-  { keywords: ["rent", "landlord", "flat", "apartment"], category: "Rent" },
-  { keywords: ["electricity", "water", "bill", "wifi", "internet", "phone", "recharge"], category: "Bills" },
-  { keywords: ["movie", "cinema", "concert", "party", "entertainment"], category: "Entertainment" },
-  { keywords: ["salary", "income", "bonus", "cashback", "refund", "freelance"], category: "Income" },
-  { keywords: ["mutual fund", "sip", "stocks", "invest", "zerodha", "groww"], category: "Investment" },
-  { keywords: ["medicine", "doctor", "hospital", "health", "medical"], category: "Utilities" },
-  { keywords: ["lend", "loan", "borrow"], category: "Lending" },
-  { keywords: ["gift", "present", "wedding", "birthday"], category: "Gifts" },
-  { keywords: ["petrol", "fuel", "pump", "gas"], category: "Petrol" },
-];
 
 interface Category { id?: string; name: string; color?: string; classification?: string; }
 interface Account { id: string; account_name: string; balance?: number; credit_limit?: number; }
@@ -64,20 +50,10 @@ export interface QuickAddTransactionProps {
   creditCardOnly?: boolean;
 }
 
-function suggestCategory(notes: string, categoriesAvail: Category[]): string | null {
-  if (!notes || notes.trim().length < 2) return null;
-  const lower = notes.toLowerCase();
-  for (const entry of KEYWORD_MAP) {
-    if (entry.keywords.some((kw) => lower.includes(kw))) {
-      if (categoriesAvail.some((c) => c.name === entry.category)) return entry.category;
-    }
-  }
-  return null;
-}
-
 export default function QuickAddTransaction({ isOpen, onClose, onSubmit, accounts = [], creditCards = [], categories = [], investments = [], initialData = null, allowCreditCard = false, creditCardOnly = false }: QuickAddTransactionProps) {
   const [form, setForm] = useState(defaultForm);
   const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [learnedRules, setLearnedRules] = useState<CategoryRule[]>([]);
   const [creatingNewInvestment, setCreatingNewInvestment] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [newInvForm, setNewInvForm] = useState({
@@ -110,9 +86,14 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
     setNewInvForm({ name: "", investment_type: "Mutual Fund" });
   }, [initialData, isOpen, creditCardOnly]);
 
+  useEffect(() => {
+    setLearnedRules(loadLearnedRules());
+  }, []);
+
   const handleNotesChange = (val: string) => {
     setForm((prev) => ({ ...prev, notes: val }));
-    const suggested = suggestCategory(val, categories);
+    const result = suggestCategoryEngine(val, learnedRules, categories.map((c) => c.name));
+    const suggested = result?.category ?? null;
     if (suggested && suggested !== form.category) setSuggestion(suggested);
     else setSuggestion(null);
   };
@@ -175,6 +156,10 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
         else if (submitData.recurrence_interval === "weekly") d.setDate(d.getDate() + 7);
         else if (submitData.recurrence_interval === "yearly") d.setFullYear(d.getFullYear() + 1);
         submitData.next_date = d.toISOString().split("T")[0];
+      }
+
+      if (form.notes.trim()) {
+        setLearnedRules(learnCategoryRule(form.notes, form.category));
       }
 
       onSubmit(submitData);

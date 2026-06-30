@@ -154,12 +154,23 @@ export default function NotificationCenter() {
                     return (
                       <div
                         key={n.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={
+                          n.read ? n.title : `${n.title} (unread, press to mark as read)`
+                        }
                         className={cn(
-                          "flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer",
+                          "flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                           !n.read && "bg-brand/5"
                         )}
                         onClick={() => {
                           if (!n.read) markReadMutation.mutate([n.id]);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            if (!n.read) markReadMutation.mutate([n.id]);
+                          }
                         }}
                       >
                         <div className={cn("mt-0.5 p-1.5 rounded-lg bg-muted", color)}>

@@ -32,7 +32,9 @@ export interface MoneyFlowSankeyProps {
  * central "Total Income" node, which then flows to: each expense
  * category (proportional to spend) and a "Savings" remainder if any.
  */
-export function MoneyFlowSankey({
+export const MoneyFlowSankey = React.memo(MoneyFlowSankeyBase);
+
+function MoneyFlowSankeyBase({
   incomeBySource,
   expensesByCategory,
   centralLabel = "Total Income",

@@ -23,7 +23,9 @@ export interface DonutWithCenterProps {
 /**
  * Donut chart with a centered KPI label — a common finance-dashboard pattern.
  */
-export function DonutWithCenter({
+export const DonutWithCenter = React.memo(DonutWithCenterBase);
+
+function DonutWithCenterBase({
   data,
   centerLabel = "Total",
   centerValue,

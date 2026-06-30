@@ -7,6 +7,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { verifyCronAuth } from "@/lib/cron-auth";
 import { runDispatcher } from "@/server/cron/dispatch";
 import { aggregateRollupJob } from "@/server/cron/jobs";
 
@@ -14,11 +15,8 @@ import { aggregateRollupJob } from "@/server/cron/jobs";
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const unauthorized = verifyCronAuth(req);
+  if (unauthorized) return unauthorized;
 
   try {
     const result = await runDispatcher(aggregateRollupJob);

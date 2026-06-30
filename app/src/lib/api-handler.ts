@@ -44,6 +44,26 @@ export const errors = {
     new HttpError(message, 500, "INTERNAL_ERROR"),
 };
 
+/**
+ * Format a ZodError into the standardized 400 validation-error response.
+ * Exported so routes that validate inline (without `createHandler`) can return
+ * an identical error shape.
+ */
+export function zodErrorResponse(err: ZodError): NextResponse {
+  return NextResponse.json<ApiError>(
+    {
+      error: "Validation failed",
+      code: "VALIDATION_ERROR",
+      details: err.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+        code: i.code,
+      })),
+    },
+    { status: 400 }
+  );
+}
+
 export interface HandlerContext<TParams> {
   req: NextRequest;
   uid: string;
@@ -178,18 +198,7 @@ function handleError(
       path: req.nextUrl.pathname,
       issues: err.issues,
     });
-    return NextResponse.json<ApiError>(
-      {
-        error: "Validation failed",
-        code: "VALIDATION_ERROR",
-        details: err.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-          code: i.code,
-        })),
-      },
-      { status: 400 }
-    );
+    return zodErrorResponse(err);
   }
 
   if (err instanceof HttpError) {

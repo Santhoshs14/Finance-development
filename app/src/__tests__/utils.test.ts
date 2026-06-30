@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cn } from "@/lib/utils";
+import { cn, safeRedirect } from "@/lib/utils";
 
 // ═══════════════════════════════════════════════════════════════════════
 // cn (classnames utility) - Comprehensive Tests
@@ -103,6 +103,71 @@ describe("cn", () => {
       expect(result).toContain("focus:ring-2");
       expect(result).toContain("sm:text-lg");
       expect(result).toContain("dark:bg-gray-800");
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// safeRedirect (open-redirect protection) - Comprehensive Tests
+// ═══════════════════════════════════════════════════════════════════════
+
+describe("safeRedirect", () => {
+  describe("Allows internal paths", () => {
+    it("returns a simple absolute path", () => {
+      expect(safeRedirect("/dashboard")).toBe("/dashboard");
+    });
+
+    it("returns a nested path with query string", () => {
+      expect(safeRedirect("/money/transactions?cycleKey=2026-06")).toBe(
+        "/money/transactions?cycleKey=2026-06"
+      );
+    });
+
+    it("allows the root path", () => {
+      expect(safeRedirect("/")).toBe("/");
+    });
+  });
+
+  describe("Falls back for unsafe or empty targets", () => {
+    it("uses default fallback when null/undefined/empty", () => {
+      expect(safeRedirect(null)).toBe("/dashboard");
+      expect(safeRedirect(undefined)).toBe("/dashboard");
+      expect(safeRedirect("")).toBe("/dashboard");
+    });
+
+    it("uses a custom fallback", () => {
+      expect(safeRedirect(null, "/home")).toBe("/home");
+    });
+
+    it("rejects absolute external URLs", () => {
+      expect(safeRedirect("https://evil.com")).toBe("/dashboard");
+      expect(safeRedirect("http://evil.com")).toBe("/dashboard");
+    });
+
+    it("rejects protocol-relative URLs", () => {
+      expect(safeRedirect("//evil.com")).toBe("/dashboard");
+    });
+
+    it("rejects backslash-normalised URLs", () => {
+      expect(safeRedirect("/\\evil.com")).toBe("/dashboard");
+      expect(safeRedirect("/\\/evil.com")).toBe("/dashboard");
+    });
+
+    it("rejects paths containing backslashes", () => {
+      expect(safeRedirect("/foo\\bar")).toBe("/dashboard");
+    });
+
+    it("rejects javascript: scheme", () => {
+      expect(safeRedirect("javascript:alert(1)")).toBe("/dashboard");
+    });
+
+    it("rejects paths with embedded control characters", () => {
+      expect(safeRedirect("/foo\nbar")).toBe("/dashboard");
+      expect(safeRedirect("/foo\tbar")).toBe("/dashboard");
+    });
+
+    it("rejects relative paths without a leading slash", () => {
+      expect(safeRedirect("dashboard")).toBe("/dashboard");
     });
   });
 });

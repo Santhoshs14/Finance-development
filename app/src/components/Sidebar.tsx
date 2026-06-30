@@ -277,14 +277,23 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen, onCollapsed
                 {/* Section header */}
                 {collapsed ? (
                   <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={section.label}
                     className={cn(
-                      "flex items-center justify-center rounded-md px-2 py-2 mb-0.5 cursor-pointer transition-colors",
+                      "flex items-center justify-center rounded-md px-2 py-2 mb-0.5 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isSectionActive
                         ? "text-brand"
                         : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
                     )}
                     title={section.label}
                     onClick={() => handleSetCollapsed(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleSetCollapsed(false);
+                      }
+                    }}
                   >
                     <SectionIcon className="h-[18px] w-[18px]" />
                   </div>

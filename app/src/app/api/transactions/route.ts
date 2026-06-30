@@ -3,6 +3,11 @@ import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { getFinancialCycleForDate } from "@/utils/financialMonth";
 import { FieldValue } from "firebase-admin/firestore";
+import {
+  createTransactionSchema,
+  transactionListQuerySchema,
+} from "@/schemas/transaction";
+import { zodErrorResponse } from "@/lib/api-handler";
 
 /**
  * GET /api/transactions
@@ -14,10 +19,11 @@ export async function GET(req: NextRequest) {
   const { uid } = auth;
 
   const { searchParams } = new URL(req.url);
-  const cycleKey = searchParams.get("cycleKey");
-  const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
-  const cursor = searchParams.get("cursor");
-  const type = searchParams.get("type");
+  const parsedQuery = transactionListQuerySchema.safeParse(
+    Object.fromEntries([...searchParams.entries()].filter(([, v]) => v !== ""))
+  );
+  if (!parsedQuery.success) return zodErrorResponse(parsedQuery.error);
+  const { cycleKey, limit, cursor, type } = parsedQuery.data;
 
   let query = adminDb
     .collection(`users/${uid}/transactions`)
@@ -78,6 +84,9 @@ export async function POST(req: NextRequest) {
   const { uid } = auth;
 
   const body = await req.json();
+  const parsedBody = createTransactionSchema.safeParse(body);
+  if (!parsedBody.success) return zodErrorResponse(parsedBody.error);
+
   const {
     amount,
     type: explicitType,

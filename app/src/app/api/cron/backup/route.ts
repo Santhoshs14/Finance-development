@@ -15,16 +15,14 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAccessToken } from "@/lib/firebase-admin";
+import { verifyCronAuth } from "@/lib/cron-auth";
 import { logger } from "@/lib/logger";
 
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const unauthorized = verifyCronAuth(req);
+  if (unauthorized) return unauthorized;
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const bucket = process.env.GCS_BACKUP_BUCKET;

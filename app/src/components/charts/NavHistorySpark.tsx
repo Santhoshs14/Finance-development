@@ -19,7 +19,9 @@ export interface NavHistorySparkProps {
  * Tiny inline sparkline for a fund's NAV history. Pure SVG — no
  * Recharts so it stays cheap in lists.
  */
-export function NavHistorySpark({
+export const NavHistorySpark = React.memo(NavHistorySparkBase);
+
+function NavHistorySparkBase({
   data,
   width = 96,
   height = 28,

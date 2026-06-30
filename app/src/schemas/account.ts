@@ -15,7 +15,7 @@ export const createAccountSchema = z.object({
   credit_limit: moneyInputSchema.optional(),
   liability: moneyInputSchema.optional(),
   shared_limit_with: z.string().max(128).optional().nullable(),
-  billing_cycle_start_day: z.coerce.number().int().min(1).max(28).optional(),
+  billing_cycle_start_day: z.coerce.number().int().min(1).max(31).optional(),
   due_days_after: z.coerce.number().int().min(0).max(60).optional(),
   account_type: z.string().max(50).optional(),
   // Per-card reward configuration (credit cards only).
@@ -25,6 +25,11 @@ export const createAccountSchema = z.object({
 });
 
 export type CreateAccountInput = z.infer<typeof createAccountSchema>;
+
+/** Credit-card creation: `type` is implied ("credit"), so omit it. */
+export const createCreditCardSchema = createAccountSchema.omit({ type: true });
+
+export type CreateCreditCardInput = z.infer<typeof createCreditCardSchema>;
 
 export const updateAccountSchema = createAccountSchema
   .partial()

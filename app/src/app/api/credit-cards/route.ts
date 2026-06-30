@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { createCreditCardSchema } from "@/schemas/account";
+import { zodErrorResponse } from "@/lib/api-handler";
 
 export async function GET(req: NextRequest) {
   const auth = await verifyAuth(req);
@@ -23,11 +25,9 @@ export async function POST(req: NextRequest) {
   const { uid } = auth;
 
   const body = await req.json();
+  const parsed = createCreditCardSchema.safeParse(body);
+  if (!parsed.success) return zodErrorResponse(parsed.error);
   const { account_name, credit_limit, liability, shared_limit_with } = body;
-
-  if (!account_name) {
-    return NextResponse.json({ error: "Missing account_name" }, { status: 400 });
-  }
 
   const data: Record<string, unknown> = {
     account_name,

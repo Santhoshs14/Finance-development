@@ -19,11 +19,16 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId)
           && request.resource.data.amount is number
+          && request.resource.data.amount > -1000000000000
+          && request.resource.data.amount < 1000000000000
           && request.resource.data.date is string
           && request.resource.data.category is string
           && request.resource.data.keys().hasAll(['amount', 'date', 'category']);
         allow update: if isOwner(userId)
-          && (!('amount' in request.resource.data) || request.resource.data.amount is number);
+          && (!('amount' in request.resource.data)
+              || (request.resource.data.amount is number
+                  && request.resource.data.amount > -1000000000000
+                  && request.resource.data.amount < 1000000000000));
         allow delete: if isOwner(userId);
       }
 
@@ -34,8 +39,17 @@ service cloud.firestore {
           && request.resource.data.account_name is string
           && request.resource.data.account_name.size() > 0
           && request.resource.data.account_name.size() <= 100
-          && request.resource.data.type in ['bank', 'wallet', 'cash', 'credit'];
-        allow update, delete: if isOwner(userId);
+          && request.resource.data.type in ['bank', 'wallet', 'cash', 'credit']
+          && (!('balance' in request.resource.data) || request.resource.data.balance is number)
+          && (!('credit_limit' in request.resource.data) || request.resource.data.credit_limit is number)
+          && (!('billing_cycle_start_day' in request.resource.data) || request.resource.data.billing_cycle_start_day is number);
+        allow update: if isOwner(userId)
+          && (!('account_name' in request.resource.data) || request.resource.data.account_name is string)
+          && (!('type' in request.resource.data) || request.resource.data.type is string)
+          && (!('balance' in request.resource.data) || request.resource.data.balance is number)
+          && (!('credit_limit' in request.resource.data) || request.resource.data.credit_limit is number)
+          && (!('billing_cycle_start_day' in request.resource.data) || request.resource.data.billing_cycle_start_day is number);
+        allow delete: if isOwner(userId);
       }
 
       // ── Categories ───────────────────────────────────────────

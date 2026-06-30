@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { logger } from "@/lib/logger";
+
+const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2 MB upload cap (statement CSVs are small)
+const ACCEPTED_EXTENSIONS = [".csv", ".txt"];
+const ACCEPTED_MIME = [
+  "text/csv",
+  "text/plain",
+  "application/vnd.ms-excel",
+  "application/csv",
+];
 
 export async function POST(req: NextRequest) {
   const auth = await verifyAuth(req);
@@ -14,6 +24,21 @@ export async function POST(req: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    // Guard against memory exhaustion and obviously-wrong uploads. Statement
+    // exports are small CSV/text files; reject anything larger or binary.
+    if (file.size > MAX_FILE_BYTES) {
+      return NextResponse.json(
+        { error: "File too large. Maximum size is 2 MB." },
+        { status: 413 }
+      );
+    }
+    if (!isAcceptedUpload(file)) {
+      return NextResponse.json(
+        { error: "Unsupported file type. Upload a .csv or .txt file." },
+        { status: 415 }
+      );
     }
 
     const text = await file.text();
@@ -62,9 +87,9 @@ export async function POST(req: NextRequest) {
       batch.set(ref, {
         date: normalizeDate(date),
         amount,
-        category: category.replace(/['"]/g, ""),
-        notes: notes.replace(/['"]/g, ""),
-        payment_type: payment_type.replace(/['"]/g, ""),
+        category: sanitizeCell(category),
+        notes: sanitizeCell(notes),
+        payment_type: sanitizeCell(payment_type),
         type: amount >= 0 ? "income" : "expense",
         account_id: "",
         imported: true,
@@ -79,15 +104,23 @@ export async function POST(req: NextRequest) {
 
     await batch.commit();
 
+    const total = lines.length - 1;
+    const truncated = total > imported + skipped;
     return NextResponse.json({
-      message: `Imported ${imported} transactions`,
+      message: truncated
+        ? `Imported ${imported} transactions (reached the ${MAX_BATCH}-row limit; re-upload the remaining rows in a new file).`
+        : `Imported ${imported} transactions`,
       imported,
       skipped,
-      total: lines.length - 1,
+      truncated,
+      total,
     });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Import failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    logger.error({ event: "import.csv_failed", uid }, error);
+    return NextResponse.json(
+      { error: "Failed to import transactions. Please check the file and try again." },
+      { status: 500 }
+    );
   }
 }
 
@@ -112,6 +145,26 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
+// Accept only small CSV/text uploads (by extension or known text MIME).
+function isAcceptedUpload(file: File): boolean {
+  const name = file.name?.toLowerCase() ?? "";
+  const type = file.type?.toLowerCase() ?? "";
+  const extOk = ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext));
+  return extOk || ACCEPTED_MIME.includes(type);
+}
+
+// Sanitize a free-text CSV cell before persisting: strip quotes + control
+// characters, and neutralize spreadsheet formula-injection by prefixing a
+// leading "=", "+", "-" or "@" with a single quote so the value can never be
+// interpreted as a formula if later re-exported to CSV/Excel.
+function sanitizeCell(value: string): string {
+  const cleaned = value
+    .replace(/["']/g, "")
+    .replace(/[\u0000-\u001f]/g, "")
+    .trim();
+  return /^[=+\-@]/.test(cleaned) ? `'${cleaned}` : cleaned;
+}
+
 // Normalize various date formats to YYYY-MM-DD
 function normalizeDate(dateStr: string): string {
   const cleaned = dateStr.replace(/['"]/g, "").trim();
@@ -119,16 +172,10 @@ function normalizeDate(dateStr: string): string {
   // Already YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
 
-  // DD/MM/YYYY or DD-MM-YYYY
+  // DD/MM/YYYY or DD-MM-YYYY (most common for Indian bank statements)
   const dmy = cleaned.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmy) {
     return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
-  }
-
-  // MM/DD/YYYY
-  const mdy = cleaned.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (mdy) {
-    return `${mdy[3]}-${mdy[1].padStart(2, "0")}-${mdy[2].padStart(2, "0")}`;
   }
 
   // Fallback: try JS Date parsing

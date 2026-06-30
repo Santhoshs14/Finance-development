@@ -6,12 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, Button, Input } from "@/components/ui";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { safeRedirect } from "@/lib/utils";
 
 export default function LoginPage() {
   const { signIn, signInWithGoogle, user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const redirectTo = safeRedirect(searchParams.get("redirect"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

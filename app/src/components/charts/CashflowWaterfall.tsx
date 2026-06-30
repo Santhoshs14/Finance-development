@@ -39,7 +39,9 @@ interface RechartsBarData {
  * Stacked-bar waterfall chart that walks from opening balance through
  * income (positive) and expenses (negative) to a closing balance.
  */
-export function CashflowWaterfall({ entries, height = 280 }: CashflowWaterfallProps) {
+export const CashflowWaterfall = React.memo(CashflowWaterfallBase);
+
+function CashflowWaterfallBase({ entries, height = 280 }: CashflowWaterfallProps) {
   const data = React.useMemo<RechartsBarData[]>(() => {
     let running = 0;
     const out: RechartsBarData[] = [];

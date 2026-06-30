@@ -21,7 +21,9 @@ interface TreemapDatum extends Record<string, unknown> {
  * Treemap of spend share per category. Each rectangle's area is
  * proportional to the spend, color-coded deterministically.
  */
-export function TreemapCategoryShare({
+export const TreemapCategoryShare = React.memo(TreemapCategoryShareBase);
+
+function TreemapCategoryShareBase({
   breakdown,
   height = 320,
 }: TreemapCategoryShareProps) {

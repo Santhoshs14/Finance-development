@@ -62,9 +62,10 @@ export default function InstallPrompt() {
           </button>
           <button
             onClick={handleDismiss}
+            aria-label="Dismiss install prompt"
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>

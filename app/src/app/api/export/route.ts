@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { USER_DATA_COLLECTIONS } from "@/server/userData";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/export
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Export failed:", error);
+    logger.error({ event: "export.failed", uid }, error);
     return NextResponse.json(
       { error: "Export failed" },
       { status: 500 }

@@ -4,7 +4,7 @@ import {
   updateTransactionSchema,
   transactionListQuerySchema,
 } from "@/schemas/transaction";
-import { createAccountSchema } from "@/schemas/account";
+import { createAccountSchema, createCreditCardSchema } from "@/schemas/account";
 import { createCategorySchema } from "@/schemas/category";
 import { createBudgetSchema } from "@/schemas/budget";
 import { createGoalSchema } from "@/schemas/goal";
@@ -124,6 +124,41 @@ describe("Zod schemas — sanity coverage", () => {
       expect(() =>
         createAccountSchema.parse({ account_name: "X", type: "crypto" })
       ).toThrow();
+    });
+
+    it("accepts billing cycle day up to 31", () => {
+      expect(() =>
+        createAccountSchema.parse({
+          account_name: "Card",
+          type: "credit",
+          billing_cycle_start_day: 31,
+        })
+      ).not.toThrow();
+    });
+
+    it("rejects billing cycle day above 31", () => {
+      expect(() =>
+        createAccountSchema.parse({
+          account_name: "Card",
+          type: "credit",
+          billing_cycle_start_day: 32,
+        })
+      ).toThrow();
+    });
+  });
+
+  describe("credit cards", () => {
+    it("accepts a credit card without an explicit type", () => {
+      const parsed = createCreditCardSchema.parse({
+        account_name: "HDFC Card",
+        credit_limit: 200000,
+        billing_cycle_start_day: 5,
+      });
+      expect(parsed.account_name).toBe("HDFC Card");
+    });
+
+    it("requires account_name", () => {
+      expect(() => createCreditCardSchema.parse({ credit_limit: 1000 })).toThrow();
     });
   });
 
