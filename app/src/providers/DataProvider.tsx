@@ -171,21 +171,21 @@ interface DataContextType {
 export type DatasetName = "investments" | "goals" | "sips";
 
 const DEFAULT_CATEGORIES = [
-  { name: "Investment", color: "#0080ff", classification: "investment" as const },
-  { name: "Rent", color: "#f59e0b" },
-  { name: "Home", color: "#8b5cf6" },
-  { name: "Food", color: "#ef4444" },
-  { name: "Travel", color: "#3b82f6" },
-  { name: "Petrol", color: "#f97316" },
-  { name: "Entertainment", color: "#ec4899" },
-  { name: "Shopping", color: "#14b8a6" },
-  { name: "Bills", color: "#64748b" },
-  { name: "Utilities", color: "#eab308" },
-  { name: "Subscription", color: "#06b6d4" },
-  { name: "Lending", color: "#84cc16" },
-  { name: "Gifts", color: "#f43f5e" },
-  { name: "Income", color: "#10b981" },
-  { name: "Other", color: "#94a3b8" },
+  { name: "Investment", type: "expense" as const, color: "#0080ff", classification: "investment" as const },
+  { name: "Rent", type: "expense" as const, color: "#f59e0b" },
+  { name: "Home", type: "expense" as const, color: "#8b5cf6" },
+  { name: "Food", type: "expense" as const, color: "#ef4444" },
+  { name: "Travel", type: "expense" as const, color: "#3b82f6" },
+  { name: "Petrol", type: "expense" as const, color: "#f97316" },
+  { name: "Entertainment", type: "expense" as const, color: "#ec4899" },
+  { name: "Shopping", type: "expense" as const, color: "#14b8a6" },
+  { name: "Bills", type: "expense" as const, color: "#64748b" },
+  { name: "Utilities", type: "expense" as const, color: "#eab308" },
+  { name: "Subscription", type: "expense" as const, color: "#06b6d4" },
+  { name: "Lending", type: "expense" as const, color: "#84cc16" },
+  { name: "Gifts", type: "expense" as const, color: "#f43f5e" },
+  { name: "Income", type: "income" as const, color: "#10b981" },
+  { name: "Other", type: "expense" as const, color: "#94a3b8" },
 ];
 
 const DataContext = createContext<DataContextType | null>(null);
