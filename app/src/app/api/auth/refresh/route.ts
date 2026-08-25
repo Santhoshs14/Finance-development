@@ -6,11 +6,20 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 const COOKIE_NAME = "__Host-session";
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 5;
 
 export async function POST(req: NextRequest) {
+  // Pre-auth per-IP guard against token-refresh abuse.
+  const rl = await rateLimit({ key: `token-refresh:${clientIp(req)}`, limit: 20, windowSec: 3600 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
   try {
     const { token } = (await req.json()) as { token?: string };
     if (!token) return NextResponse.json({ error: "Token required" }, { status: 400 });

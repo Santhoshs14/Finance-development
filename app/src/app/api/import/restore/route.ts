@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
+import { rateLimit } from "@/lib/rate-limit";
 import { USER_DATA_COLLECTIONS } from "@/server/userData";
 
 export const maxDuration = 300;
@@ -21,6 +22,14 @@ export async function POST(req: NextRequest) {
   const auth = await verifyAuth(req);
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
+
+  const rl = await rateLimit({ key: `import-restore:${uid}`, limit: 5, windowSec: 3600 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   let body: Record<string, unknown>;
   try {

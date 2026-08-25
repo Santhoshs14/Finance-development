@@ -15,6 +15,7 @@ import {
   updatePasskeyCounter,
 } from "@/lib/webauthn";
 import { appendAudit } from "@/server/repos/profile";
+import { rateLimitOrThrow, clientIp } from "@/lib/rate-limit";
 
 const bodySchema = z.object({
   assertion: z.record(z.string(), z.unknown()),
@@ -24,7 +25,10 @@ const TEMP_CHALLENGE_UID = "_webauthn_pending";
 
 export const POST = createHandler(
   { event: "auth.webauthn.auth_verify", body: bodySchema, auth: false },
-  async ({ body }) => {
+  async ({ req, body }) => {
+    // Pre-auth per-IP guard against credential enumeration / brute force.
+    await rateLimitOrThrow({ key: `webauthn-auth:${clientIp(req)}`, limit: 10, windowSec: 300 });
+
     const credentialId = (
       body.assertion as { id?: string; rawId?: string }
     ).id;

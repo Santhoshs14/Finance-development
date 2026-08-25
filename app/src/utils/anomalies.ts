@@ -90,7 +90,7 @@ export function detectAnomalies(input: AnomalyDetectionInput): AnomalyAlert[] {
   // 1) Category spikes
   for (const b of baseline) {
     const current = currentCycleBreakdown[b.category] ?? 0;
-    if (b.stdDevSpend === 0 || current === 0) continue;
+    if (Math.abs(b.stdDevSpend) < 1e-9 || current === 0) continue;
     const z = (current - b.meanSpend) / b.stdDevSpend;
     if (z >= 2) {
       const severity: AnomalyAlert["severity"] = z >= 3 ? "high" : "medium";

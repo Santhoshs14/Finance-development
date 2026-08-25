@@ -3,6 +3,7 @@ import { z } from "zod";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { zodErrorResponse } from "@/lib/api-handler";
 
@@ -27,6 +28,14 @@ export async function POST(req: NextRequest) {
   const auth = await verifyAuth(req);
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
+
+  const rl = await rateLimit({ key: `import-batch:${uid}`, limit: 60, windowSec: 600 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   try {
     const body = await req.json().catch(() => null);

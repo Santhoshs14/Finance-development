@@ -12,6 +12,7 @@ import {
   savePasskey,
 } from "@/lib/webauthn";
 import { appendAudit } from "@/server/repos/profile";
+import { rateLimitOrThrow } from "@/lib/rate-limit";
 
 const bodySchema = z.object({
   attestationResponse: z.record(z.string(), z.unknown()),
@@ -21,6 +22,8 @@ const bodySchema = z.object({
 export const POST = createHandler(
   { event: "auth.webauthn.register_verify", body: bodySchema },
   async ({ uid, body }) => {
+    await rateLimitOrThrow({ key: `webauthn-register:${uid}`, limit: 10, windowSec: 3600 });
+
     const challenge = await consumeChallenge(uid, "registration");
     if (!challenge) throw errors.badRequest("Challenge expired or missing");
 

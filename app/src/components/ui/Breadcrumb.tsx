@@ -14,6 +14,16 @@ const sectionLabels: Record<string, string> = {
   settings: "Settings",
 };
 
+// Section roots that have no index page redirect to their default child page.
+const sectionRoots: Record<string, string> = {
+  money: "/money/accounts",
+  spending: "/spending/budgets",
+  credit: "/credit",
+  wealth: "/investments",
+  reports: "/reports",
+  settings: "/settings",
+};
+
 const pageLabels: Record<string, string> = {
   accounts: "Accounts",
   "cash-flow": "Cash Flow",
@@ -43,7 +53,7 @@ export function Breadcrumb({ className }: { className?: string }) {
   if (segments.length === 0) return null;
 
   const section = segments[0];
-  const page = segments[1];
+  const page =sectionRoots[section] ??  segments[1];
 
   const sectionLabel = sectionLabels[section];
   const pageLabel = page ? pageLabels[page] : undefined;

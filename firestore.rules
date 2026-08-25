@@ -39,7 +39,7 @@ service cloud.firestore {
           && request.resource.data.account_name is string
           && request.resource.data.account_name.size() > 0
           && request.resource.data.account_name.size() <= 100
-          && request.resource.data.type in ['bank', 'wallet', 'cash', 'credit']
+          && request.resource.data.type in ['bank', 'savings', 'current', 'wallet', 'cash', 'credit']
           && (!('balance' in request.resource.data) || request.resource.data.balance is number)
           && (!('credit_limit' in request.resource.data) || request.resource.data.credit_limit is number)
           && (!('billing_cycle_start_day' in request.resource.data) || request.resource.data.billing_cycle_start_day is number);
@@ -196,14 +196,13 @@ service cloud.firestore {
         allow delete: if isOwner(userId);
       }
 
-      // ── Notifications (mostly Admin-SDK created; client marks read / deletes) ──
+      // ── Notifications (Admin-SDK created only; client marks read / deletes) ──
       match /notifications/{id} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId)
-          && request.resource.data.title is string
-          && request.resource.data.title.size() > 0
-          && request.resource.data.message is string
-          && request.resource.data.keys().hasAll(['title', 'message']);
+        // Notifications are created exclusively server-side via the Admin SDK
+        // (cron jobs + API routes), which bypasses these rules. Blocking client
+        // creates prevents forged/injected notifications.
+        allow create: if false;
         allow update: if isOwner(userId)
           && (!('read' in request.resource.data) || request.resource.data.read is bool);
         allow delete: if isOwner(userId);

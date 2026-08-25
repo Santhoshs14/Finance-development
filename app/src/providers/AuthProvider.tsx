@@ -39,9 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
-        }).catch(() => {});
+        }).catch((err) => console.error("Session sync failed", err));
       } else {
-        await fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
+        await fetch("/api/auth/session", { method: "DELETE" }).catch((err) =>
+          console.error("Session clear failed", err)
+        );
       }
     });
     return unsubscribe;
@@ -54,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
-    }).catch(() => {});
+    }).catch((err) => console.error("Session sync failed", err));
   };
 
   const signUp = async (email: string, password: string) => {
@@ -64,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
-    }).catch(() => {});
+    }).catch((err) => console.error("Session sync failed", err));
   };
 
   const signInWithGoogle = async () => {
@@ -75,11 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
-    }).catch(() => {});
+    }).catch((err) => console.error("Session sync failed", err));
   };
 
   const signOut = async () => {
-    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
+    await fetch("/api/auth/session", { method: "DELETE" }).catch((err) =>
+      console.error("Session clear failed", err)
+    );
     await firebaseSignOut(auth);
   };
 

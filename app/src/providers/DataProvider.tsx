@@ -264,27 +264,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     // Profile (cycleStartDay, monthlySalary, currency, onboardingComplete)
     unsubscribes.push(
-      onSnapshot(doc(db, `users/${uid}`), (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setCycleStartDay(data.cycleStartDay || 25);
-          setMonthlySalary(data.monthlySalary || 0);
-          setCurrency(data.currency || "INR");
-          // Existing users without the field are treated as already onboarded
-          setOnboardingComplete(data.onboardingComplete !== false);
-        } else {
-          // Doc doesn't exist = brand new user, show onboarding
-          setOnboardingComplete(false);
-        }
-      })
+      onSnapshot(
+        doc(db, `users/${uid}`),
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setCycleStartDay(data.cycleStartDay || 25);
+            setMonthlySalary(data.monthlySalary || 0);
+            setCurrency(data.currency || "INR");
+            // Existing users without the field are treated as already onboarded
+            setOnboardingComplete(data.onboardingComplete !== false);
+          } else {
+            // Doc doesn't exist = brand new user, show onboarding
+            setOnboardingComplete(false);
+          }
+        },
+        (err) => console.error("profile listener error", err)
+      )
     );
 
     // Accounts
     unsubscribes.push(
-      onSnapshot(collection(db, `users/${uid}/accounts`), (snap) => {
-        setAccounts(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Account)));
-        setAccountsReady(true);
-      })
+      onSnapshot(
+        collection(db, `users/${uid}/accounts`),
+        (snap) => {
+          setAccounts(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Account)));
+          setAccountsReady(true);
+        },
+        (err) => {
+          console.error("accounts listener error", err);
+          setAccountsReady(true);
+        }
+      )
     );
 
     // Transactions (latest 500)
@@ -294,55 +305,76 @@ export function DataProvider({ children }: { children: ReactNode }) {
       limit(500)
     );
     unsubscribes.push(
-      onSnapshot(txQuery, (snap) => {
-        const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Transaction));
-        fetched.sort((a, b) => {
-          const dateCmp = b.date.localeCompare(a.date);
-          if (dateCmp !== 0) return dateCmp;
-          const aTs = typeof a.createdAt === "object" ? a.createdAt : null;
-          const bTs = typeof b.createdAt === "object" ? b.createdAt : null;
-          const aTime = aTs?.seconds || aTs?.toMillis?.() || 0;
-          const bTime = bTs?.seconds || bTs?.toMillis?.() || 0;
-          return bTime - aTime;
-        });
-        setTransactions(fetched);
-        setTransactionsReady(true);
-      })
+      onSnapshot(
+        txQuery,
+        (snap) => {
+          const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Transaction));
+          fetched.sort((a, b) => {
+            const dateCmp = b.date.localeCompare(a.date);
+            if (dateCmp !== 0) return dateCmp;
+            const aTs = typeof a.createdAt === "object" ? a.createdAt : null;
+            const bTs = typeof b.createdAt === "object" ? b.createdAt : null;
+            const aTime = aTs?.seconds || aTs?.toMillis?.() || 0;
+            const bTime = bTs?.seconds || bTs?.toMillis?.() || 0;
+            return bTime - aTime;
+          });
+          setTransactions(fetched);
+          setTransactionsReady(true);
+        },
+        (err) => {
+          console.error("transactions listener error", err);
+          setTransactionsReady(true);
+        }
+      )
     );
 
     // Categories — seed defaults if empty, migrate classification for existing
     const categoriesRef = collection(db, `users/${uid}/categories`);
     unsubscribes.push(
-      onSnapshot(categoriesRef, async (snap) => {
-        if (snap.empty) {
-          const batch = writeBatch(db);
-          DEFAULT_CATEGORIES.forEach((cat) => {
-            const slug = cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-");
-            const docRef = doc(db, `users/${uid}/categories/${slug}`);
-            batch.set(docRef, { ...cat, createdAt: new Date().toISOString() });
-          });
-          await batch.commit();
-        } else {
-          const cats = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Category));
-          setCategories(cats);
+      onSnapshot(
+        categoriesRef,
+        async (snap) => {
+          if (snap.empty) {
+            const batch = writeBatch(db);
+            DEFAULT_CATEGORIES.forEach((cat) => {
+              const slug = cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+              const docRef = doc(db, `users/${uid}/categories/${slug}`);
+              batch.set(docRef, { ...cat, createdAt: new Date().toISOString() });
+            });
+            await batch.commit();
+          } else {
+            const cats = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Category));
+            setCategories(cats);
 
-          // One-time migration: ensure "Investment" category has classification set
-          const investCat = snap.docs.find((d) => d.data().name === "Investment" && !d.data().classification);
-          if (investCat) {
-            const { updateDoc } = await import("firebase/firestore");
-            await updateDoc(investCat.ref, { classification: "investment" });
+            // One-time migration: ensure "Investment" category has classification set
+            const investCat = snap.docs.find((d) => d.data().name === "Investment" && !d.data().classification);
+            if (investCat) {
+              const { updateDoc } = await import("firebase/firestore");
+              await updateDoc(investCat.ref, { classification: "investment" });
+            }
           }
+          setCategoriesReady(true);
+        },
+        (err) => {
+          console.error("categories listener error", err);
+          setCategoriesReady(true);
         }
-        setCategoriesReady(true);
-      })
+      )
     );
 
     // Recurring transaction templates
     unsubscribes.push(
-      onSnapshot(collection(db, `users/${uid}/recurring`), (snap) => {
-        setRecurring(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecurringItem)));
-        setRecurringReady(true);
-      })
+      onSnapshot(
+        collection(db, `users/${uid}/recurring`),
+        (snap) => {
+          setRecurring(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecurringItem)));
+          setRecurringReady(true);
+        },
+        (err) => {
+          console.error("recurring listener error", err);
+          setRecurringReady(true);
+        }
+      )
     );
 
     // Notifications (last 50, ordered by createdAt desc)
@@ -352,21 +384,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
       limit(50)
     );
     unsubscribes.push(
-      onSnapshot(notifQuery, (snap) => {
-        setNotifications(
-          snap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              type: data.type || "info",
-              title: data.title || "",
-              message: data.message || "",
-              read: data.read || false,
-              createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-            } as Notification;
-          })
-        );
-      })
+      onSnapshot(
+        notifQuery,
+        (snap) => {
+          setNotifications(
+            snap.docs.map((d) => {
+              const data = d.data();
+              return {
+                id: d.id,
+                type: data.type || "info",
+                title: data.title || "",
+                message: data.message || "",
+                read: data.read || false,
+                createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+              } as Notification;
+            })
+          );
+        },
+        (err) => console.error("notifications listener error", err)
+      )
     );
 
     // Splits, goals, lending, emis, and investments are no longer subscribed
@@ -394,7 +430,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setInvestments(
           snap.docs.map((d) => ({ id: d.id, ...d.data() } as Investment))
         );
-      }
+      },
+      (err) => console.error("investments listener error", err)
     );
     return () => unsub();
   }, [user, activeDatasets.investments]);

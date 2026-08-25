@@ -7,6 +7,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { detectAndParse } from "@/server/parsers";
 
@@ -16,6 +17,15 @@ export async function POST(req: NextRequest) {
   const auth = await verifyAuth(req);
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
+
+  // PDF parsing is CPU-intensive — cap per-user throughput.
+  const rl = await rateLimit({ key: `import-pdf:${uid}`, limit: 10, windowSec: 600 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   try {
     const formData = await req.formData();

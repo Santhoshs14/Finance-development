@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
+import { rateLimit } from "@/lib/rate-limit";
 import { USER_DATA_COLLECTIONS } from "@/server/userData";
 import { logger } from "@/lib/logger";
 
@@ -12,6 +13,14 @@ export async function GET(req: NextRequest) {
   const auth = await verifyAuth(req);
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
+
+  const rl = await rateLimit({ key: `export:${uid}`, limit: 10, windowSec: 3600 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   try {
     const exportData: Record<string, unknown[]> = {};

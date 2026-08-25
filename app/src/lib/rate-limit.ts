@@ -118,3 +118,10 @@ export async function rateLimitOrThrow(opts: RateLimitOptions): Promise<void> {
     );
   }
 }
+
+/** Best-effort client IP for pre-auth (per-IP) rate-limit keys. */
+export function clientIp(req: { headers: Headers }): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}

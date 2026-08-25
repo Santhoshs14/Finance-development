@@ -3,6 +3,8 @@ import { firestoreIdSchema, moneyInputSchema } from "./common";
 
 export const accountTypeSchema = z.enum([
   "bank",
+  "savings",
+  "current",
   "wallet",
   "cash",
   "credit",
