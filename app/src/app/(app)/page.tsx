@@ -175,8 +175,6 @@ export default function DashboardPage() {
   useDataset("investments");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [goals, setGoals] = useState<Array<{ id: string; target_amount?: number; current_amount?: number }>>([]);
-  const [mutualFunds, setMutualFunds] = useState<Array<{ id: string; current_nav?: string; units: string; invested_amount?: string }>>([]);
-  const [lending, setLending] = useState<Array<{ id: string; type: string; amount: number; paid_amount?: number }>>([]);
   const [prevAggregate, setPrevAggregate] = useState<Record<string, number> | null>(null);
   const [pastAggregates, setPastAggregates] = useState<Array<{ cycleKey: string; label: string; totalSpent: number; totalIncome: number }>>([]);
 
@@ -192,8 +190,6 @@ export default function DashboardPage() {
     const uid = user.uid;
     const unsubs = [
       onSnapshot(collection(db, `users/${uid}/goals`), (snap) => setGoals(snap.docs.map((d) => ({ id: d.id, ...d.data() } as typeof goals[0])))),
-      onSnapshot(collection(db, `users/${uid}/mutualFunds`), (snap) => setMutualFunds(snap.docs.map((d) => ({ id: d.id, ...d.data() } as typeof mutualFunds[0])))),
-      onSnapshot(collection(db, `users/${uid}/lending`), (snap) => setLending(snap.docs.map((d) => ({ id: d.id, ...d.data() } as typeof lending[0])))),
     ];
     return () => unsubs.forEach((fn) => fn());
   }, [user]);
@@ -236,13 +232,9 @@ export default function DashboardPage() {
 
   const bankAccounts = useMemo(() => accounts.filter((a) => a.type !== "credit"), [accounts]);
   const accountsBalance = bankAccounts.reduce((s, a) => s + (a.balance || 0), 0);
-  const totalSavings = mutualFunds.reduce((s, mf) => {
-    const val = mf.current_nav ? parseFloat(mf.current_nav) * parseFloat(mf.units) : parseFloat(mf.invested_amount || "0");
-    return s + val;
-  }, 0);
-  const totalLiabilities = creditCards.reduce((s, cc) => s + parseFloat(String(cc.liability || cc.balance || 0)), 0)
-    + lending.filter((l) => l.type === "borrowed").reduce((s, l) => s + ((l.amount || 0) - (l.paid_amount || 0)), 0);
-  const netWorth = accountsBalance + totalSavings - totalLiabilities;
+  // Same math as the dedicated Net Worth page: value ALL investments, not just mutual funds.
+  const netWorthData = useMemo(() => calculateNetWorth(accounts, investments, []), [accounts, investments]);
+  const netWorth = netWorthData.net_worth;
 
   const cycleTxns = useMemo(() => transactions.filter((t) => t.date >= currentCycle.startDate && t.date <= currentCycle.endDate), [transactions, currentCycle]);
 
@@ -292,10 +284,9 @@ export default function DashboardPage() {
     // Live, investment-aware savings so the gauge matches the displayed savings
     // rate; /reports/health uses the same util for the two views to agree.
     const savingsData = calculateSavingsFromTransactions(cycleTxns, investmentCategories);
-    const netWorthData = calculateNetWorth(accounts, investments, []);
     const allocation = calculatePortfolioAllocation(accounts, investments);
     return calculateFinancialHealthScore(savingsData, netWorthData, null, allocation);
-  }, [cycleTxns, investmentCategories, accounts, investments]);
+  }, [cycleTxns, investmentCategories, accounts, investments, netWorthData]);
 
   const _riskAlerts = useMemo(() => {
     const alerts: Array<{ type: "danger" | "warning"; message: string }> = [];
@@ -455,7 +446,6 @@ export default function DashboardPage() {
         { label: "Balance", value: accountsBalance, icon: <Landmark className="w-4 h-4" style={{ color: "#10b981" }} />, color: "#10b981" },
         { label: "Income", value: cashFlow.totalIncome, icon: <TrendingUp className="w-4 h-4" style={{ color: "#22c55e" }} />, color: "#22c55e", trend: getTrend(cashFlow.totalIncome, "totalIncome") },
         { label: "Expenses", value: cashFlow.totalExpenses, icon: <TrendingDown className="w-4 h-4" style={{ color: "#ef4444" }} />, color: "#ef4444", trend: getTrend(cashFlow.totalExpenses, "totalSpent") },
-        { label: "Invested", value: cashFlow.investmentSpend, icon: <Landmark className="w-4 h-4" style={{ color: "#8b5cf6" }} />, color: "#8b5cf6" },
         { label: "Savings Rate", value: savingsRate, icon: <PiggyBank className="w-4 h-4" style={{ color: "#f59e0b" }} />, color: "#f59e0b", isPercent: true },
       ]} />
                 )}
@@ -467,17 +457,17 @@ export default function DashboardPage() {
             <CardTitle>Cash Flow</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-5 gap-2 mb-4">
+            <div className="grid grid-cols-4 gap-2 mb-4">
               {[
-                { label: "Income", value: cashFlow.totalIncome, color: "text-success" },
-                { label: "Expenses", value: cashFlow.totalExpenses, color: "text-danger" },
-                { label: "Invested", value: cashFlow.investmentSpend, color: "text-brand" },
-                { label: "Net", value: cashFlow.netSavings, color: cashFlow.netSavings >= 0 ? "text-success" : "text-danger" },
-                { label: "Daily Avg", value: cashFlow.dailyAvgSpend, color: "text-warning" },
-              ].map(({ label, value, color }) => (
+                { label: "Income", value: cashFlow.totalIncome, color: "text-success", sub: null as string | null },
+                { label: "Expenses", value: cashFlow.totalExpenses, color: "text-danger", sub: cashFlow.investmentSpend > 0 ? `+ ${fmt(cashFlow.investmentSpend)} invested` : null },
+                { label: "Net", value: cashFlow.netSavings, color: cashFlow.netSavings >= 0 ? "text-success" : "text-danger", sub: null as string | null },
+                { label: "Daily Avg", value: cashFlow.dailyAvgSpend, color: "text-warning", sub: null as string | null },
+              ].map(({ label, value, color, sub }) => (
                 <div key={label} className="rounded-lg bg-muted/50 p-2.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase">{label}</p>
                   <p className={cn("text-sm font-bold mt-0.5", color)}>{fmt(Math.abs(value))}</p>
+                  {sub && <p className="text-[10px] font-medium text-brand mt-0.5">{sub}</p>}
                 </div>
               ))}
             </div>
