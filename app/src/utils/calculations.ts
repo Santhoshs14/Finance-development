@@ -177,6 +177,48 @@ export const calculateSavingsRateFromAggregates = (aggregate: Aggregate) => {
   return { income, expenses, investmentSpend, savings, savings_rate };
 };
 
+/**
+ * Investment-aware savings from raw transactions (live, per-cycle view).
+ *
+ * Mirrors `calculateSavingsRateFromAggregates` but works off transactions so the
+ * dashboard/health gauge can credit investment spend as savings without depending
+ * on the server aggregate. `expenses` is NORMAL (non-investment) spend so it drops
+ * straight into `getHealthPillars` (savings + emergency-fund pillars).
+ * Credit-card purchases are excluded (cash-flow view); classification reuses the
+ * shared `classifyAggregateTxn` so income/expense detection matches everywhere.
+ */
+export const calculateSavingsFromTransactions = (
+  transactions: Array<{
+    type?: string;
+    amount?: number;
+    category?: string;
+    payment_type?: string;
+  }>,
+  investmentCategories: Set<string>
+) => {
+  let income = 0;
+  let normalExpenses = 0;
+  let investmentSpend = 0;
+  for (const t of transactions) {
+    if (t.payment_type === "Credit Card") continue;
+    const cls = classifyAggregateTxn(t);
+    const amt = Math.abs(t.amount ?? 0);
+    if (cls === "income") {
+      income += amt;
+    } else if (cls === "expense") {
+      if (investmentCategories.has(t.category ?? "")) investmentSpend += amt;
+      else normalExpenses += amt;
+    }
+  }
+  income = r(income);
+  normalExpenses = r(normalExpenses);
+  investmentSpend = r(investmentSpend);
+  const savings = r(income - normalExpenses);
+  const savings_rate =
+    income === 0 ? 0 : parseFloat(((savings / income) * 100).toFixed(2));
+  return { income, expenses: normalExpenses, investmentSpend, savings, savings_rate };
+};
+
 export const calculateBudgetUsageFromAggregates = (
   budgets: Budget[],
   aggregate: Aggregate

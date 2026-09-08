@@ -6,11 +6,13 @@ import { useInvestments } from "@/hooks/useInvestments";
 import {
   calculateNetWorth,
   calculatePortfolioAllocation,
-  calculateSavingsRateFromAggregates,
+  calculateSavingsFromTransactions,
   calculateCCUtilization,
   getHealthPillars,
   healthRating,
 } from "@/utils/calculations";
+import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
+import { getFinancialCycle } from "@/utils/financialMonth";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Heart, ShieldCheck, PiggyBank, CreditCard, Landmark, PieChart as PieIcon, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
@@ -27,15 +29,28 @@ interface Pillar {
 }
 
 export default function FinancialHealthPage() {
-  const { accounts, currentAggregate } = useData();
+  const { accounts, transactions, categories, cycleStartDay } = useData();
   const { investments } = useInvestments();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
-  const savingsData = useMemo(
-    () => calculateSavingsRateFromAggregates(currentAggregate || {}),
-    [currentAggregate]
-  );
+  const investmentCategories = useMemo(() => {
+    const set = new Set<string>(DEFAULT_INVESTMENT_CATEGORIES);
+    for (const c of categories) {
+      if ((c as { classification?: string }).classification === "investment") set.add(c.name);
+    }
+    return set;
+  }, [categories]);
+
+  const savingsData = useMemo(() => {
+    // Live, investment-aware savings for the current cycle so this report and the
+    // dashboard gauge stay in lockstep.
+    const cycle = getFinancialCycle(new Date(), cycleStartDay);
+    const cycleTxns = transactions.filter(
+      (t) => t.date >= cycle.startDate && t.date <= cycle.endDate
+    );
+    return calculateSavingsFromTransactions(cycleTxns, investmentCategories);
+  }, [transactions, cycleStartDay, investmentCategories]);
 
   const netWorthData = useMemo(
     () => calculateNetWorth(accounts, investments, []),

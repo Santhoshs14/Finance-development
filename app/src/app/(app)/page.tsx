@@ -14,7 +14,8 @@ import { db } from "@/lib/firebase";
 import { collection, doc, onSnapshot } from "firebase/firestore";
 import { transactionsAPI } from "@/services/api";
 import { getFinancialCycle, getCycleDayInfo, getRecentFinancialMonths } from "@/utils/financialMonth";
-import { calculateCreditCardHealth, classifyAggregateTxn, calculateFinancialHealthScore, calculateSavingsRateFromAggregates, calculateNetWorth, calculatePortfolioAllocation, healthRating } from "@/utils/calculations";
+import { calculateCreditCardHealth, classifyAggregateTxn, calculateFinancialHealthScore, calculateSavingsFromTransactions, calculateNetWorth, calculatePortfolioAllocation, healthRating } from "@/utils/calculations";
+import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
 import { generateSmartInsights } from "@/utils/insights";
 import { fmt } from "@/utils/format";
 import QuickAddTransaction from "@/components/QuickAddTransaction";
@@ -245,8 +246,17 @@ export default function DashboardPage() {
 
   const cycleTxns = useMemo(() => transactions.filter((t) => t.date >= currentCycle.startDate && t.date <= currentCycle.endDate), [transactions, currentCycle]);
 
+  // Investment categories: built-ins plus any user category flagged "investment".
+  const investmentCategories = useMemo(() => {
+    const set = new Set<string>(DEFAULT_INVESTMENT_CATEGORIES);
+    for (const c of categories) {
+      if ((c as { classification?: string }).classification === "investment") set.add(c.name);
+    }
+    return set;
+  }, [categories]);
+
   const cashFlow = useMemo(() => {
-    let tIncome = 0, tExpense = 0;
+    let tIncome = 0, tExpense = 0, tInvestment = 0;
     cycleTxns.forEach((t) => {
       // Cash-flow view excludes credit-card purchases (not a cash outflow until
       // the bill is paid). Transfers / CC repayments are handled by the shared
@@ -254,11 +264,17 @@ export default function DashboardPage() {
       if (t.payment_type === "Credit Card") return;
       const cls = classifyAggregateTxn(t);
       if (cls === "income") tIncome += Math.abs(t.amount);
-      else if (cls === "expense") tExpense += Math.abs(t.amount);
+      else if (cls === "expense") {
+        // Investment spend is tracked separately so it counts as savings, not expense.
+        if (investmentCategories.has(t.category)) tInvestment += Math.abs(t.amount);
+        else tExpense += Math.abs(t.amount);
+      }
     });
-    return { totalIncome: tIncome, totalExpenses: tExpense, netSavings: tIncome - tExpense, dailyAvgSpend: cycleInfo.daysElapsed > 0 ? tExpense / cycleInfo.daysElapsed : 0 };
-  }, [cycleTxns, cycleInfo]);
+    const totalOutflow = tExpense + tInvestment;
+    return { totalIncome: tIncome, totalExpenses: tExpense, investmentSpend: tInvestment, totalOutflow, netSavings: tIncome - totalOutflow, dailyAvgSpend: cycleInfo.daysElapsed > 0 ? tExpense / cycleInfo.daysElapsed : 0 };
+  }, [cycleTxns, cycleInfo, investmentCategories]);
 
+  // Savings rate credits investment spend as savings (excluded from normal expenses).
   const savingsRate = cashFlow.totalIncome > 0 ? ((cashFlow.totalIncome - cashFlow.totalExpenses) / cashFlow.totalIncome) * 100 : 0;
 
   const categoryData = useMemo(() => {
@@ -273,13 +289,13 @@ export default function DashboardPage() {
   }, [cycleTxns, categories]);
 
   const healthScore = useMemo(() => {
-    // Use the shared scoring util with the same inputs as the /reports/health
-    // page so the dashboard gauge and the health report always agree.
-    const savingsData = calculateSavingsRateFromAggregates(currentAggregate || {});
+    // Live, investment-aware savings so the gauge matches the displayed savings
+    // rate; /reports/health uses the same util for the two views to agree.
+    const savingsData = calculateSavingsFromTransactions(cycleTxns, investmentCategories);
     const netWorthData = calculateNetWorth(accounts, investments, []);
     const allocation = calculatePortfolioAllocation(accounts, investments);
     return calculateFinancialHealthScore(savingsData, netWorthData, null, allocation);
-  }, [currentAggregate, accounts, investments]);
+  }, [cycleTxns, investmentCategories, accounts, investments]);
 
   const _riskAlerts = useMemo(() => {
     const alerts: Array<{ type: "danger" | "warning"; message: string }> = [];
@@ -313,7 +329,7 @@ export default function DashboardPage() {
 
   // Daily budget remaining
   const dailyBudgetLeft = useMemo(() => {
-    const remaining = cashFlow.totalIncome - cashFlow.totalExpenses;
+    const remaining = cashFlow.totalIncome - cashFlow.totalOutflow;
     const daysLeft = cycleInfo.totalDays - cycleInfo.daysElapsed;
     return daysLeft > 0 ? remaining / daysLeft : 0;
   }, [cashFlow, cycleInfo]);
@@ -439,6 +455,7 @@ export default function DashboardPage() {
         { label: "Balance", value: accountsBalance, icon: <Landmark className="w-4 h-4" style={{ color: "#10b981" }} />, color: "#10b981" },
         { label: "Income", value: cashFlow.totalIncome, icon: <TrendingUp className="w-4 h-4" style={{ color: "#22c55e" }} />, color: "#22c55e", trend: getTrend(cashFlow.totalIncome, "totalIncome") },
         { label: "Expenses", value: cashFlow.totalExpenses, icon: <TrendingDown className="w-4 h-4" style={{ color: "#ef4444" }} />, color: "#ef4444", trend: getTrend(cashFlow.totalExpenses, "totalSpent") },
+        { label: "Invested", value: cashFlow.investmentSpend, icon: <Landmark className="w-4 h-4" style={{ color: "#8b5cf6" }} />, color: "#8b5cf6" },
         { label: "Savings Rate", value: savingsRate, icon: <PiggyBank className="w-4 h-4" style={{ color: "#f59e0b" }} />, color: "#f59e0b", isPercent: true },
       ]} />
                 )}
@@ -450,10 +467,11 @@ export default function DashboardPage() {
             <CardTitle>Cash Flow</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-5 gap-2 mb-4">
               {[
                 { label: "Income", value: cashFlow.totalIncome, color: "text-success" },
                 { label: "Expenses", value: cashFlow.totalExpenses, color: "text-danger" },
+                { label: "Invested", value: cashFlow.investmentSpend, color: "text-brand" },
                 { label: "Net", value: cashFlow.netSavings, color: cashFlow.netSavings >= 0 ? "text-success" : "text-danger" },
                 { label: "Daily Avg", value: cashFlow.dailyAvgSpend, color: "text-warning" },
               ].map(({ label, value, color }) => (
@@ -551,7 +569,7 @@ export default function DashboardPage() {
                       <span className="text-xs text-muted-foreground">{fmt(b.spent)}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, (b.spent / (cashFlow.totalExpenses || 1)) * 100)}%`, backgroundColor: b.color }} />
+                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, (b.spent / (cashFlow.totalOutflow || 1)) * 100)}%`, backgroundColor: b.color }} />
                     </div>
                   </div>
                 ))}

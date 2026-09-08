@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   calculateNetWorth,
   calculateSavingsRateFromAggregates,
+  calculateSavingsFromTransactions,
   calculateBudgetUsageFromAggregates,
 } from "@/utils/calculations";
 
@@ -109,5 +110,65 @@ describe("calculateSavingsRateFromAggregates - investment awareness", () => {
     // Effective expenses = 0, savings = 100000
     expect(result.savings).toBe(100000);
     expect(result.savings_rate).toBe(100);
+  });
+});
+
+describe("calculateSavingsFromTransactions", () => {
+  const investmentCats = new Set(["Investment"]);
+
+  it("credits investment spend as savings and separates normal expenses", () => {
+    const txns = [
+      { type: "income", amount: 100000, category: "Income" },
+      { type: "expense", amount: -40000, category: "Food" },
+      { type: "expense", amount: -20000, category: "Investment" },
+    ];
+    const result = calculateSavingsFromTransactions(txns, investmentCats);
+    expect(result.income).toBe(100000);
+    expect(result.expenses).toBe(40000); // normal only
+    expect(result.investmentSpend).toBe(20000);
+    expect(result.savings).toBe(60000); // 100000 - 40000
+    expect(result.savings_rate).toBe(60);
+  });
+
+  it("includes user categories flagged as investment", () => {
+    const txns = [
+      { type: "income", amount: 50000, category: "Income" },
+      { type: "expense", amount: -10000, category: "PPF" },
+    ];
+    const result = calculateSavingsFromTransactions(txns, new Set(["Investment", "PPF"]));
+    expect(result.investmentSpend).toBe(10000);
+    expect(result.expenses).toBe(0);
+    expect(result.savings_rate).toBe(100);
+  });
+
+  it("excludes credit-card purchases from the cash-flow view", () => {
+    const txns = [
+      { type: "income", amount: 50000, category: "Income" },
+      { type: "expense", amount: -5000, category: "Shopping", payment_type: "Credit Card" },
+      { type: "expense", amount: -10000, category: "Food" },
+    ];
+    const result = calculateSavingsFromTransactions(txns, investmentCats);
+    expect(result.expenses).toBe(10000);
+    expect(result.savings).toBe(40000);
+  });
+
+  it("skips transfers and CC repayments", () => {
+    const txns = [
+      { type: "income", amount: 50000, category: "Income" },
+      { type: "expense", amount: -8000, category: "Transfer" },
+      { type: "expense", amount: -3000, category: "Credit Card Payment" },
+      { type: "expense", amount: -10000, category: "Rent" },
+    ];
+    const result = calculateSavingsFromTransactions(txns, investmentCats);
+    expect(result.expenses).toBe(10000);
+    expect(result.investmentSpend).toBe(0);
+    expect(result.savings_rate).toBe(80);
+  });
+
+  it("returns 0 rate when there is no income", () => {
+    const txns = [{ type: "expense", amount: -5000, category: "Food" }];
+    const result = calculateSavingsFromTransactions(txns, investmentCats);
+    expect(result.income).toBe(0);
+    expect(result.savings_rate).toBe(0);
   });
 });
