@@ -8,7 +8,6 @@ import {
   Landmark,
   Target,
   LineChart,
-  Calculator,
 } from "lucide-react";
 
 const tabs = [
@@ -18,7 +17,6 @@ const tabs = [
   { label: "Other", path: "/investments/other", icon: Landmark },
   { label: "Goals", path: "/investments/goals", icon: Target },
   { label: "Net Worth", path: "/investments/net-worth", icon: LineChart },
-  { label: "Retirement", path: "/investments/retirement", icon: Calculator },
 ];
 
 export default function InvestmentsLayout({

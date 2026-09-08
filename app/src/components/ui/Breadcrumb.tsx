@@ -4,13 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CALCULATORS } from "@/components/calculators/registry";
 
 const sectionLabels: Record<string, string> = {
   money: "Money",
   spending: "Spending",
   credit: "Credit",
   wealth: "Wealth",
+  investments: "Investments",
   reports: "Reports",
+  calculators: "Calculators",
   settings: "Settings",
 };
 
@@ -20,7 +23,9 @@ const sectionRoots: Record<string, string> = {
   spending: "/spending/budgets",
   credit: "/credit",
   wealth: "/investments",
+  investments: "/investments",
   reports: "/reports",
+  calculators: "/calculators",
   settings: "/settings",
 };
 
@@ -44,6 +49,12 @@ const pageLabels: Record<string, string> = {
   monthly: "Monthly Review",
   yearly: "Yearly Review",
   health: "Financial Health",
+  "debt-strategy": "Debt Strategy",
+  splits: "Splits",
+  recurring: "Recurring",
+  gold: "Gold",
+  "mutual-funds": "Mutual Funds",
+  ...Object.fromEntries(CALCULATORS.map((calc) => [calc.slug, calc.title])),
 };
 
 export function Breadcrumb({ className }: { className?: string }) {
@@ -53,7 +64,7 @@ export function Breadcrumb({ className }: { className?: string }) {
   if (segments.length === 0) return null;
 
   const section = segments[0];
-  const page =sectionRoots[section] ??  segments[1];
+  const page = segments[1];
 
   const sectionLabel = sectionLabels[section];
   const pageLabel = page ? pageLabels[page] : undefined;
@@ -63,7 +74,7 @@ export function Breadcrumb({ className }: { className?: string }) {
   return (
     <nav className={cn("flex items-center gap-1 text-sm", className)}>
       <Link
-        href={`/${section}`}
+        href={sectionRoots[section] ?? `/${section}`}
         className="text-muted-foreground hover:text-foreground transition-colors"
       >
         {sectionLabel}

@@ -2,14 +2,32 @@
 
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { fmt } from "@/utils/format";
+import { fmt, fmtCompact } from "@/utils/format";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle, Input, Badge } from "@/components/ui";
+import { Badge, Card, CardContent } from "@/components/ui";
+import ChartCard from "@/components/ChartCard";
+import CustomTooltip from "@/components/CustomTooltip";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip,
-} from "recharts";
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip as RTooltip,
+  XAxis,
+  YAxis,
+} from "@/components/charts/lazy";
 import {
-  Calculator,
+  CalcField,
+  CalculatorShell,
+  InputsCard,
+  PrefillBanner,
+  ResultPanel,
+  usePrefill,
+} from "@/components/calculators";
+import { calculateRetirementPlan } from "@/utils/calculators";
+import {
+  Wallet,
   TrendingUp,
   Target,
   Calendar,
@@ -29,69 +47,7 @@ const SCENARIOS: Scenario[] = [
   { label: "Optimistic", returnRate: 15, color: "#10b981" },
 ];
 
-function calculateRetirement(params: {
-  currentAge: number;
-  retireAge: number;
-  monthlyExpenses: number;
-  inflationRate: number;
-  returnRate: number;
-  currentCorpus: number;
-  monthlySIP: number;
-}) {
-  const { currentAge, retireAge, monthlyExpenses, inflationRate, returnRate, currentCorpus, monthlySIP } = params;
-  const yearsToRetire = retireAge - currentAge;
-  const yearsInRetirement = 85 - retireAge; // Assume lifespan 85
-
-  if (yearsToRetire <= 0) return null;
-
-  // Future monthly expenses at retirement (adjusted for inflation)
-  const futureMonthlyExpenses = monthlyExpenses * Math.pow(1 + inflationRate / 100, yearsToRetire);
-
-  // Corpus needed at retirement (using 4% safe withdrawal adjusted for inflation)
-  // Or more accurately: PV of annuity during retirement
-  const realReturnInRetirement = (returnRate - inflationRate) / 100;
-  const monthlyRealReturn = realReturnInRetirement / 12;
-
-  let corpusNeeded: number;
-  if (monthlyRealReturn <= 0) {
-    corpusNeeded = futureMonthlyExpenses * 12 * yearsInRetirement;
-  } else {
-    corpusNeeded = futureMonthlyExpenses * (1 - Math.pow(1 + monthlyRealReturn, -yearsInRetirement * 12)) / monthlyRealReturn;
-  }
-
-  // What current corpus + SIPs will grow to
-  const monthlyReturn = returnRate / 100 / 12;
-  const months = yearsToRetire * 12;
-
-  const corpusGrowth = currentCorpus * Math.pow(1 + monthlyReturn, months);
-  const sipGrowth = monthlySIP * ((Math.pow(1 + monthlyReturn, months) - 1) / monthlyReturn);
-  const projectedCorpus = corpusGrowth + sipGrowth;
-
-  // Required monthly SIP to reach target
-  const gap = corpusNeeded - corpusGrowth;
-  const requiredSIP = gap > 0 ? gap * monthlyReturn / (Math.pow(1 + monthlyReturn, months) - 1) : 0;
-
-  // Build year-by-year projection
-  const projection: Array<{ year: number; age: number; corpus: number }> = [];
-  let running = currentCorpus;
-  for (let y = 0; y <= yearsToRetire; y++) {
-    projection.push({ year: new Date().getFullYear() + y, age: currentAge + y, corpus: Math.round(running) });
-    running = running * (1 + returnRate / 100) + monthlySIP * 12;
-  }
-
-  return {
-    corpusNeeded: Math.round(corpusNeeded),
-    projectedCorpus: Math.round(projectedCorpus),
-    gap: Math.round(Math.max(0, corpusNeeded - projectedCorpus)),
-    requiredSIP: Math.round(requiredSIP),
-    futureMonthlyExpenses: Math.round(futureMonthlyExpenses),
-    yearsToRetire,
-    yearsInRetirement,
-    projection,
-  };
-}
-
-export default function RetirementPage() {
+export default function RetirementCalculatorPage() {
   const [inputs, setInputs] = useState({
     currentAge: "30",
     retireAge: "55",
@@ -100,237 +56,302 @@ export default function RetirementPage() {
     currentCorpus: "500000",
     monthlySIP: "20000",
   });
-
   const [activeScenario, setActiveScenario] = useState(1); // Moderate
+  const prefill = usePrefill();
 
-  const results = useMemo(() => {
-    return SCENARIOS.map((s) =>
-      calculateRetirement({
-        currentAge: parseInt(inputs.currentAge) || 30,
-        retireAge: parseInt(inputs.retireAge) || 55,
-        monthlyExpenses: parseFloat(inputs.monthlyExpenses) || 50000,
-        inflationRate: parseFloat(inputs.inflationRate) || 6,
-        returnRate: s.returnRate,
-        currentCorpus: parseFloat(inputs.currentCorpus) || 0,
-        monthlySIP: parseFloat(inputs.monthlySIP) || 0,
-      })
-    );
-  }, [inputs]);
+  const set = (key: keyof typeof inputs) => (value: string) =>
+    setInputs((prev) => ({ ...prev, [key]: value }));
+
+  const results = useMemo(
+    () =>
+      SCENARIOS.map((s) =>
+        calculateRetirementPlan({
+          currentAge: parseInt(inputs.currentAge) || 30,
+          retireAge: parseInt(inputs.retireAge) || 55,
+          monthlyExpenses: parseFloat(inputs.monthlyExpenses) || 0,
+          inflationRate: parseFloat(inputs.inflationRate) || 0,
+          returnRate: s.returnRate,
+          currentCorpus: parseFloat(inputs.currentCorpus) || 0,
+          monthlySIP: parseFloat(inputs.monthlySIP) || 0,
+        })
+      ),
+    [inputs]
+  );
 
   const activeResult = results[activeScenario];
+  const scenario = SCENARIOS[activeScenario];
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Retirement Calculator</h1>
-        <p className="text-sm text-muted-foreground">Plan your financial independence with scenario analysis</p>
-      </div>
+    <CalculatorShell
+      title="Retirement Calculator"
+      description="Plan your financial independence with scenario analysis"
+      icon={Wallet}
+    >
+      <PrefillBanner
+        label="Your average monthly spend is"
+        value={prefill.monthlyExpenses}
+        onApply={() =>
+          setInputs((prev) => ({
+            ...prev,
+            monthlyExpenses: String(Math.round(prefill.monthlyExpenses)),
+          }))
+        }
+      />
 
-      {/* Inputs */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-brand" /> Parameters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div>
-              <label className="block text-[11px] font-medium text-muted-foreground mb-1">Current Age</label>
-              <Input type="number" value={inputs.currentAge} onChange={(e) => setInputs({ ...inputs, currentAge: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-muted-foreground mb-1">Retire At</label>
-              <Input type="number" value={inputs.retireAge} onChange={(e) => setInputs({ ...inputs, retireAge: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-muted-foreground mb-1">Monthly Expenses</label>
-              <Input type="number" value={inputs.monthlyExpenses} onChange={(e) => setInputs({ ...inputs, monthlyExpenses: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-muted-foreground mb-1">Inflation (%)</label>
-              <Input type="number" value={inputs.inflationRate} onChange={(e) => setInputs({ ...inputs, inflationRate: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-muted-foreground mb-1">Current Corpus</label>
-              <Input type="number" value={inputs.currentCorpus} onChange={(e) => setInputs({ ...inputs, currentCorpus: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-muted-foreground mb-1">Monthly SIP</label>
-              <Input type="number" value={inputs.monthlySIP} onChange={(e) => setInputs({ ...inputs, monthlySIP: e.target.value })} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <InputsCard>
+        <CalcField
+          label="Current Age"
+          value={inputs.currentAge}
+          onChange={set("currentAge")}
+          min={18}
+          max={70}
+          slider
+        />
+        <CalcField
+          label="Retire At"
+          value={inputs.retireAge}
+          onChange={set("retireAge")}
+          min={30}
+          max={80}
+          slider
+        />
+        <CalcField
+          label="Monthly Expenses"
+          value={inputs.monthlyExpenses}
+          onChange={set("monthlyExpenses")}
+          unit="₹"
+          min={0}
+        />
+        <CalcField
+          label="Inflation"
+          value={inputs.inflationRate}
+          onChange={set("inflationRate")}
+          unit="%"
+          min={0}
+          max={15}
+          step={0.5}
+          slider
+        />
+        <CalcField
+          label="Current Corpus"
+          value={inputs.currentCorpus}
+          onChange={set("currentCorpus")}
+          unit="₹"
+          min={0}
+        />
+        <CalcField
+          label="Monthly SIP"
+          value={inputs.monthlySIP}
+          onChange={set("monthlySIP")}
+          unit="₹"
+          min={0}
+        />
+      </InputsCard>
 
-      {/* Scenario Tabs */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {SCENARIOS.map((s, i) => (
           <button
             key={s.label}
+            type="button"
+            aria-pressed={activeScenario === i}
             onClick={() => setActiveScenario(i)}
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeScenario === i ? "bg-brand text-white shadow-sm" : "bg-muted text-muted-foreground hover:bg-muted/80"
+              activeScenario === i
+                ? "bg-brand text-white shadow-sm"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: s.color }}
+            />
             {s.label} ({s.returnRate}%)
           </button>
         ))}
       </div>
 
-      {/* Results */}
-      {activeResult && (
-        <motion.div key={activeScenario} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          {/* KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <Target className="w-4 h-4 text-danger" />
-                  <span className="text-[11px] font-medium text-muted-foreground uppercase">Corpus Needed</span>
-                </div>
-                <p className="text-xl font-bold text-foreground">{fmt(activeResult.corpusNeeded)}</p>
-                <p className="text-[11px] text-muted-foreground">For {activeResult.yearsInRetirement} years post-retirement</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <TrendingUp className="w-4 h-4 text-success" />
-                  <span className="text-[11px] font-medium text-muted-foreground uppercase">Projected Corpus</span>
-                </div>
-                <p className="text-xl font-bold text-foreground">{fmt(activeResult.projectedCorpus)}</p>
-                <p className="text-[11px] text-muted-foreground">At current SIP + corpus growth</p>
-              </CardContent>
-            </Card>
-            <Card className={activeResult.gap > 0 ? "border-danger/30" : "border-success/30"}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  {activeResult.gap > 0 ? <AlertTriangle className="w-4 h-4 text-danger" /> : <PiggyBank className="w-4 h-4 text-success" />}
-                  <span className="text-[11px] font-medium text-muted-foreground uppercase">Gap</span>
-                </div>
-                <p className={cn("text-xl font-bold", activeResult.gap > 0 ? "text-danger" : "text-success")}>
-                  {activeResult.gap > 0 ? fmt(activeResult.gap) : "On Track!"}
-                </p>
-                {activeResult.gap > 0 && <p className="text-[11px] text-muted-foreground">Shortfall to cover</p>}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <Calendar className="w-4 h-4 text-brand" />
-                  <span className="text-[11px] font-medium text-muted-foreground uppercase">Required SIP</span>
-                </div>
-                <p className="text-xl font-bold text-brand">{fmt(activeResult.requiredSIP)}</p>
-                <p className="text-[11px] text-muted-foreground">/month to reach target</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Projection Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Corpus Growth Projection</CardTitle>
-            </CardHeader>
-            <CardContent>
+      {!activeResult ? (
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            Set a retirement age above your current age to see a projection.
+          </CardContent>
+        </Card>
+      ) : (
+        <motion.div
+          key={activeScenario}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <ResultPanel
+            headlineLabel="Corpus needed at retirement"
+            headline={fmt(activeResult.corpusNeeded)}
+            headlineHint={`To fund ${activeResult.yearsInRetirement} years of retirement at ${scenario.returnRate}% returns`}
+            stats={[
+              {
+                label: "Projected Corpus",
+                value: fmt(activeResult.projectedCorpus),
+                hint: "From current corpus + SIP",
+                tone: "success",
+                icon: TrendingUp,
+              },
+              {
+                label: "Gap",
+                value: activeResult.gap > 0 ? fmt(activeResult.gap) : "On track!",
+                hint: activeResult.gap > 0 ? "Shortfall to cover" : undefined,
+                tone: activeResult.gap > 0 ? "danger" : "success",
+                icon: activeResult.gap > 0 ? AlertTriangle : PiggyBank,
+              },
+              {
+                label: "Required SIP",
+                value: fmt(activeResult.requiredSIP),
+                hint: "/month to reach target",
+                tone: "brand",
+                icon: Calendar,
+              },
+              {
+                label: "Expenses at Retirement",
+                value: fmt(activeResult.futureMonthlyExpenses),
+                hint: `Today's ${fmt(parseFloat(inputs.monthlyExpenses) || 0)}/month`,
+                tone: "warning",
+                icon: Target,
+              },
+            ]}
+            note={
+              <>
+                Corpus needed is the present value at retirement of an
+                inflation-adjusted monthly expense annuity, discounted at the real
+                (post-inflation) return. A life expectancy of 85 is assumed and
+                returns are treated as constant — real markets vary year to year.
+              </>
+            }
+          >
+            <ChartCard
+              title="Corpus Growth Projection"
+              subtitle={`${scenario.label} scenario — ${scenario.returnRate}% annual returns`}
+            >
               <div className="w-full" style={{ height: 280 }}>
                 <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={activeResult.projection}>
+                  <AreaChart
+                    data={activeResult.projection}
+                    margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                  >
                     <defs>
                       <linearGradient id="corpusGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={SCENARIOS[activeScenario].color} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={SCENARIOS[activeScenario].color} stopOpacity={0} />
+                        <stop offset="5%" stopColor={scenario.color} stopOpacity={0.35} />
+                        <stop offset="95%" stopColor={scenario.color} stopOpacity={0.04} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="age" tick={{ fontSize: 11 }} className="fill-muted-foreground" label={{ value: "Age", position: "bottom", fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" tickFormatter={(v) => `₹${(v / 10000000).toFixed(1)}Cr`} />
+                    <XAxis
+                      dataKey="age"
+                      tick={{ fontSize: 11 }}
+                      className="fill-muted-foreground"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      width={64}
+                      className="fill-muted-foreground"
+                      tickFormatter={(v: number) => fmtCompact(v)}
+                    />
                     <RTooltip
-                      formatter={(value) => [fmt(value as number), "Corpus"]}
-                      labelFormatter={(label) => `Age ${label}`}
+                      content={<CustomTooltip />}
+                      labelFormatter={(label: React.ReactNode) => `Age ${label}`}
+                    />
+                    <ReferenceLine
+                      y={activeResult.corpusNeeded}
+                      stroke="#ef4444"
+                      strokeDasharray="4 4"
+                      label={{
+                        value: "Target",
+                        position: "insideTopRight",
+                        fontSize: 11,
+                        fill: "#ef4444",
+                      }}
                     />
                     <Area
                       type="monotone"
                       dataKey="corpus"
-                      stroke={SCENARIOS[activeScenario].color}
+                      name="Corpus"
+                      stroke={scenario.color}
                       fill="url(#corpusGrad)"
                       strokeWidth={2}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              {/* Target line indicator */}
-              <div className="flex items-center justify-center gap-4 mt-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: SCENARIOS[activeScenario].color }} />
-                  Projected Growth
-                </span>
-                <span>Target: {fmt(activeResult.corpusNeeded)}</span>
-              </div>
-            </CardContent>
-          </Card>
+            </ChartCard>
 
-          {/* Future expenses */}
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
-                <div className="text-xs text-muted-foreground">
-                  <p>Your current ₹{parseInt(inputs.monthlyExpenses).toLocaleString("en-IN")}/month expenses will become <strong className="text-foreground">{fmt(activeResult.futureMonthlyExpenses)}/month</strong> at retirement (adjusted for {inputs.inflationRate}% inflation over {activeResult.yearsToRetire} years).</p>
+            <Card>
+              <CardContent className="p-5">
+                <h3 className="text-sm font-semibold text-foreground mb-3">
+                  Scenario Comparison
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th scope="col" className="text-left py-2 text-xs font-medium text-muted-foreground">
+                          Scenario
+                        </th>
+                        <th scope="col" className="text-right py-2 text-xs font-medium text-muted-foreground">
+                          Returns
+                        </th>
+                        <th scope="col" className="text-right py-2 text-xs font-medium text-muted-foreground">
+                          Projected
+                        </th>
+                        <th scope="col" className="text-right py-2 text-xs font-medium text-muted-foreground">
+                          Needed
+                        </th>
+                        <th scope="col" className="text-right py-2 text-xs font-medium text-muted-foreground">
+                          SIP Required
+                        </th>
+                        <th scope="col" className="text-right py-2 text-xs font-medium text-muted-foreground">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {SCENARIOS.map((s, i) => {
+                        const row = results[i];
+                        if (!row) return null;
+                        return (
+                          <tr key={s.label} className="border-b border-border/50">
+                            <td className="py-2.5 flex items-center gap-2">
+                              <span
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: s.color }}
+                              />
+                              <span className="font-medium text-foreground">{s.label}</span>
+                            </td>
+                            <td className="text-right text-muted-foreground">
+                              {s.returnRate}%
+                            </td>
+                            <td className="text-right font-medium text-foreground">
+                              {fmt(row.projectedCorpus)}
+                            </td>
+                            <td className="text-right text-muted-foreground">
+                              {fmt(row.corpusNeeded)}
+                            </td>
+                            <td className="text-right font-medium text-brand">
+                              {fmt(row.requiredSIP)}
+                            </td>
+                            <td className="text-right">
+                              <Badge variant={row.gap === 0 ? "success" : "warning"}>
+                                {row.gap === 0 ? "On Track" : "Gap"}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* All scenarios comparison */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Scenario Comparison</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-2 text-xs font-medium text-muted-foreground">Scenario</th>
-                      <th className="text-right py-2 text-xs font-medium text-muted-foreground">Returns</th>
-                      <th className="text-right py-2 text-xs font-medium text-muted-foreground">Projected</th>
-                      <th className="text-right py-2 text-xs font-medium text-muted-foreground">Needed</th>
-                      <th className="text-right py-2 text-xs font-medium text-muted-foreground">SIP Required</th>
-                      <th className="text-right py-2 text-xs font-medium text-muted-foreground">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {SCENARIOS.map((s, i) => {
-                      const r = results[i];
-                      if (!r) return null;
-                      return (
-                        <tr key={s.label} className="border-b border-border/50">
-                          <td className="py-2.5 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                            <span className="font-medium text-foreground">{s.label}</span>
-                          </td>
-                          <td className="text-right text-muted-foreground">{s.returnRate}%</td>
-                          <td className="text-right font-medium text-foreground">{fmt(r.projectedCorpus)}</td>
-                          <td className="text-right text-muted-foreground">{fmt(r.corpusNeeded)}</td>
-                          <td className="text-right font-medium text-brand">{fmt(r.requiredSIP)}</td>
-                          <td className="text-right">
-                            <Badge variant={r.gap === 0 ? "success" : "warning"}>
-                              {r.gap === 0 ? "On Track" : "Gap"}
-                            </Badge>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </ResultPanel>
         </motion.div>
       )}
-    </div>
+    </CalculatorShell>
   );
 }

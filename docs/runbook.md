@@ -119,7 +119,7 @@ After each production deploy:
 - [ ] Sign in with a test account
 - [ ] Add a transaction; verify it shows on the dashboard within ~1 s
 - [ ] Visit `/money/import`; verify the PDF input renders
-- [ ] Visit `/reports/tax`; verify the regime calculator renders
+- [ ] Visit `/calculators/income-tax`; verify the regime calculator renders
 - [ ] Send a Sentry test event (`Sentry.captureMessage("Deploy smoke")` from devtools console)
 - [ ] Check `Content-Security-Policy` header on `https://securityheaders.com/?q=yourdomain.com`
 

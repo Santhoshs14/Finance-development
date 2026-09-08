@@ -22,6 +22,8 @@ import {
   type AssetClass,
 } from "@/utils/capitalGains";
 import { Card, CardContent, CardHeader, CardTitle, Input, Progress, Badge } from "@/components/ui";
+import { CalculatorShell } from "@/components/calculators";
+import { calculateHraExemption } from "@/utils/calculators";
 import {
   Shield,
   Heart,
@@ -216,20 +218,16 @@ export default function TaxPage() {
   }, [allEntries]);
 
   // HRA exemption (Old Regime)
-  const hraExemption = useMemo(() => {
-    const basic = parseFloat(hra.basicSalary) || 0;
-    const received = parseFloat(hra.hraReceived) || 0;
-    const rent = parseFloat(hra.rentPaid) || 0;
-    if (basic === 0 || rent === 0) return null;
-    const annualBasic = basic * 12;
-    const annualHRA = received * 12;
-    const annualRent = rent * 12;
-    const a = annualHRA;
-    const b = annualRent - 0.1 * annualBasic;
-    const c = (hra.isMetro ? 0.5 : 0.4) * annualBasic;
-    const exempt = Math.max(0, Math.min(a, b, c));
-    return { exempt, components: { a, b: Math.max(0, b), c } };
-  }, [hra]);
+  const hraExemption = useMemo(
+    () =>
+      calculateHraExemption({
+        basicSalary: parseFloat(hra.basicSalary) || 0,
+        hraReceived: parseFloat(hra.hraReceived) || 0,
+        rentPaid: parseFloat(hra.rentPaid) || 0,
+        isMetro: hra.isMetro,
+      }),
+    [hra]
+  );
 
   const gross = parseFloat(grossIncome) || 0;
   const npsEmp = parseFloat(npsEmployer) || 0;
@@ -286,13 +284,11 @@ export default function TaxPage() {
   const inputClass = "w-full rounded-lg px-3 py-2 text-sm border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-brand/40";
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      {/* Header + FY + Regime Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Income Tax Calculator</h1>
-          <p className="text-sm text-muted-foreground">{selectedFY?.label} · New Regime (default) or Old Regime</p>
-        </div>
+    <CalculatorShell
+      title="Income Tax Calculator"
+      description={`${selectedFY?.label ?? ""} · Compare the new and old regimes`}
+      icon={Shield}
+      action={
         <div className="flex items-center gap-3 flex-wrap">
           <select
             value={fyKey}
@@ -320,7 +316,8 @@ export default function TaxPage() {
             </button>
           </div>
         </div>
-      </div>
+      }
+    >
 
       <div id="tax-report" className="space-y-6">
         {/* Gross Income Input */}
@@ -763,6 +760,6 @@ export default function TaxPage() {
           </div>
         </div>
       )}
-    </div>
+    </CalculatorShell>
   );
 }

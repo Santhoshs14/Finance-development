@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { cn } from "@/lib/utils";
+import { CALCULATORS } from "@/components/calculators/registry";
 import {
   Home,
   Landmark,
@@ -32,7 +33,6 @@ import {
   CalendarDays,
   Calendar,
   Heart,
-  Shield,
   Settings,
   Sun,
   Moon,
@@ -111,7 +111,6 @@ const sections: NavSection[] = [
       { label: "Other", path: "/investments/other", icon: Landmark },
       { label: "Goals", path: "/investments/goals", icon: Target },
       { label: "Net Worth", path: "/investments/net-worth", icon: LineChart },
-      { label: "Retirement", path: "/investments/retirement", icon: Calculator },
     ],
   },
   {
@@ -122,7 +121,19 @@ const sections: NavSection[] = [
       { label: "Monthly", path: "/reports/monthly", icon: CalendarDays },
       { label: "Yearly", path: "/reports/yearly", icon: Calendar },
       { label: "Health", path: "/reports/health", icon: Heart },
-      { label: "Tax", path: "/reports/tax", icon: Shield },
+    ],
+  },
+  {
+    id: "calculators",
+    label: "Calculators",
+    icon: Calculator,
+    items: [
+      { label: "All Calculators", path: "/calculators", icon: LayoutDashboard },
+      ...CALCULATORS.map((calc) => ({
+        label: calc.title.replace(/ Calculator$/, ""),
+        path: `/calculators/${calc.slug}`,
+        icon: calc.icon,
+      })),
     ],
   },
 ];

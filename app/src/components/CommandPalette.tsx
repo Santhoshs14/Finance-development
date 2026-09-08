@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import { useData } from "@/providers/DataProvider";
 import { fmt } from "@/utils/format";
+import { CALCULATORS } from "@/components/calculators/registry";
 import {
   Home, Landmark, ArrowUpDown, ArrowLeftRight, CalendarClock, Handshake,
   PieChart, Tags, BarChart3, LayoutDashboard,
   CreditCard, FileText, Gift, Calculator, Lightbulb,
   TrendingUp, TrendingDown, Repeat, Target, LineChart, Gem,
-  CalendarDays, Calendar, Heart, Shield, Split,
+  CalendarDays, Calendar, Heart, Split,
   Settings, Search,
 } from "lucide-react";
 
@@ -62,7 +63,6 @@ const NAV_SECTIONS = [
       { label: "Other", href: "/investments/other", icon: Landmark },
       { label: "Goals", href: "/investments/goals", icon: Target },
       { label: "Net Worth", href: "/investments/net-worth", icon: LineChart },
-      { label: "Retirement", href: "/investments/retirement", icon: Calculator },
     ],
   },
   {
@@ -71,7 +71,17 @@ const NAV_SECTIONS = [
       { label: "Monthly Review", href: "/reports/monthly", icon: CalendarDays },
       { label: "Yearly Review", href: "/reports/yearly", icon: Calendar },
       { label: "Financial Health", href: "/reports/health", icon: Heart },
-      { label: "Tax Calculator", href: "/reports/tax", icon: Shield },
+    ],
+  },
+  {
+    label: "Calculators",
+    items: [
+      { label: "All Calculators", href: "/calculators", icon: Calculator },
+      ...CALCULATORS.map((calc) => ({
+        label: calc.title,
+        href: `/calculators/${calc.slug}`,
+        icon: calc.icon,
+      })),
     ],
   },
   {
@@ -138,6 +148,7 @@ export default function CommandPalette() {
           c: "/credit",
           w: "/investments",
           r: "/reports/monthly",
+          k: "/calculators",
           s: "/settings",
           l: "/money/lending",
           g: "/investments/goals",
