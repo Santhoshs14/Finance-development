@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     ...(link ? { link } : {}),
     read: false,
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   return NextResponse.json({ id: ref.id }, { status: 201 });
@@ -76,7 +77,7 @@ export async function PATCH(req: NextRequest) {
 
     const batch = adminDb.batch();
     unreadSnap.docs.forEach((doc) => {
-      batch.update(doc.ref, { read: true });
+      batch.update(doc.ref, { read: true, updatedAt: FieldValue.serverTimestamp() });
     });
     await batch.commit();
 
@@ -93,7 +94,7 @@ export async function PATCH(req: NextRequest) {
   const batch = adminDb.batch();
   for (const id of ids.slice(0, 50)) {
     const ref = adminDb.doc(`users/${uid}/notifications/${id}`);
-    batch.update(ref, { read: true });
+    batch.update(ref, { read: true, updatedAt: FieldValue.serverTimestamp() });
   }
   await batch.commit();
 

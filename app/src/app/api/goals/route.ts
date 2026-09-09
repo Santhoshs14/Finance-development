@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     description: parsed.description ?? "",
     linked_funds: parsed.linked_funds ?? [],
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   const ref = await adminDb.collection(`users/${uid}/goals`).add(data);

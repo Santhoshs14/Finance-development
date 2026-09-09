@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
     current_price: parsedCurrentPrice,
     quantity: parsedQuantity,
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   // Optional fields

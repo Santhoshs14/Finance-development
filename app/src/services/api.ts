@@ -1,4 +1,5 @@
 import { auth } from "@/lib/firebase";
+import { announceMutation } from "@/lib/mutation-events";
 
 /** Stable per-request id so a retried mutation is not applied twice. */
 export function newIdempotencyKey(): string {
@@ -36,6 +37,13 @@ export async function authFetch(
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error || `Request failed: ${res.status}`);
+  }
+
+  // The client is the only reliable signal that its own write landed, so every
+  // successful mutation nudges the sync engine rather than waiting for a poll.
+  const method = (options.method ?? "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD") {
+    announceMutation(url);
   }
 
   return res;

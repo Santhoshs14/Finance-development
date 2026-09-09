@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     type,
     balance: parseFloat(balance || "0"),
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   if (type === "credit") {

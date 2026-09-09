@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
+import { deleteWithTombstone } from "@/server/sync/beacon";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await verifyAuth(req);
@@ -34,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const totalSettled = settlements.reduce((sum: number, s: { amount: number }) => sum + s.amount, 0);
     const settled = totalSettled >= totalOwed;
 
-    await ref.update({ settlements, settled });
+    await ref.update({ settlements, settled, updatedAt: FieldValue.serverTimestamp() });
     return NextResponse.json({ message: "Settlement recorded", settled });
   }
 
@@ -49,6 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
+  updates.updatedAt = FieldValue.serverTimestamp();
   await ref.update(updates);
   return NextResponse.json({ message: "Split updated" });
 }
@@ -66,6 +69,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "Split not found" }, { status: 404 });
   }
 
-  await ref.delete();
+  await deleteWithTombstone(uid, "splits", id);
   return NextResponse.json({ message: "Split deleted" });
 }

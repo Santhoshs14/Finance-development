@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
     interestRate: Number(interestRate),
     startDate: startDate || new Date().toISOString().split("T")[0],
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   const docRef = await adminDb.collection(`users/${uid}/emis`).add(docData);

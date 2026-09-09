@@ -8,6 +8,7 @@ import {
   getInvestmentCategories,
 } from "@/server/repos/aggregates";
 import { transitionDeltas, type AggregatableTxn } from "@/server/aggregates/delta";
+import { bumpSyncIn, recordTombstoneIn } from "@/server/sync/beacon";
 
 const EDITABLE_FIELDS = [
   "description",
@@ -187,7 +188,10 @@ export async function DELETE(
       );
 
       transaction.delete(target.ref);
+      recordTombstoneIn(transaction, uid, "transactions", target.ref.id);
     }
+
+    bumpSyncIn(transaction, uid, "transactions");
   });
 
   return NextResponse.json({ message: "Transaction deleted" });

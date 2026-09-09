@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     settled: false,
     settlements: [] as unknown[],
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   const ref = await adminDb.collection(`users/${uid}/splits`).add(data);

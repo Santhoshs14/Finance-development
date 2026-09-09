@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     description: description || "",
     status: status || "pending",
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   const ref = await adminDb.collection(`users/${uid}/lending`).add(data);

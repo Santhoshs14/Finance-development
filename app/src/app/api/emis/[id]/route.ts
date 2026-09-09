@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
+import { deleteWithTombstone } from "@/server/sync/beacon";
 
 /**
  * PATCH /api/emis/[id]
@@ -41,6 +43,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  updates.updatedAt = FieldValue.serverTimestamp();
   await docRef.update(updates);
   return NextResponse.json({ id, ...docSnap.data(), ...updates });
 }
@@ -63,6 +66,6 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  await docRef.delete();
+  await deleteWithTombstone(uid, "emis", id);
   return NextResponse.json({ success: true });
 }

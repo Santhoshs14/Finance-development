@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
     type,
     status: "active",
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
     last_executed: null,
   };
 

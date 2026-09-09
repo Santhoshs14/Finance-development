@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
+import { deleteWithTombstone } from "@/server/sync/beacon";
 
 export async function DELETE(
   req: NextRequest,
@@ -17,6 +18,6 @@ export async function DELETE(
     return NextResponse.json({ error: "Category not found" }, { status: 404 });
   }
 
-  await docRef.delete();
+  await deleteWithTombstone(uid, "categories", id);
   return NextResponse.json({ message: "Category deleted" });
 }

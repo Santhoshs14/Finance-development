@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     credit_limit: parseFloat(credit_limit || "0"),
     liability: parseFloat(liability || "0"),
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   if (shared_limit_with) data.shared_limit_with = shared_limit_with;

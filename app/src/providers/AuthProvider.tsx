@@ -117,10 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    const uid = auth.currentUser?.uid;
     await fetch("/api/auth/session", { method: "DELETE" }).catch((err) =>
       console.error("Session clear failed", err)
     );
     await firebaseSignOut(auth);
+
+    // The local replica holds full financial history; it must not outlive the
+    // session on a shared device.
+    if (uid) {
+      const { destroyLocalDb } = await import("@/lib/localdb");
+      await destroyLocalDb(uid).catch((err) =>
+        console.error("Local data wipe failed", err)
+      );
+    }
   };
 
   return (

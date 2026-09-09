@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { bumpSync, recordTombstone } from "@/server/sync/beacon";
 
 export async function PATCH(
   req: NextRequest,
@@ -90,5 +91,8 @@ export async function DELETE(
   }
 
   await docRef.delete();
+  // The legacy mutualFunds fallback replicates under `investments` too.
+  await recordTombstone(uid, "investments", id);
+  await bumpSync(uid, "investments");
   return NextResponse.json({ message: "Investment deleted" });
 }

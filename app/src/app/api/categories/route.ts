@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     ...(tax_section ? { tax_section } : {}),
     ...(classification ? { classification } : {}),
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   const ref = await adminDb.collection(`users/${uid}/categories`).add(data);
