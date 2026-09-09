@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { cn } from "@/lib/utils";
-import { CALCULATORS } from "@/components/calculators/registry";
 import {
   Home,
   Landmark,
@@ -125,16 +124,7 @@ const sections: NavSection[] = [
   },
   {
     id: "calculators",
-    label: "Calculators",
-    icon: Calculator,
-    items: [
-      { label: "All Calculators", path: "/calculators", icon: LayoutDashboard },
-      ...CALCULATORS.map((calc) => ({
-        label: calc.title.replace(/ Calculator$/, ""),
-        path: `/calculators/${calc.slug}`,
-        icon: calc.icon,
-      })),
-    ],
+    items: [{ label: "Calculators", path: "/calculators", icon: Calculator }],
   },
 ];
 
@@ -248,10 +238,13 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen, onCollapsed
         {/* Navigation */}
         <nav className="flex-1 px-2 pt-3 overflow-y-auto overflow-x-hidden">
           {sections.map((section) => {
-            if (section.id === "home") {
-              // Home is always visible, not in a collapsible group
+            if (!section.label) {
+              // Label-less sections render as a single flat link, not a collapsible group
               const item = section.items[0];
-              const isActive = pathname === item.path;
+              const isActive =
+                item.path === "/"
+                  ? pathname === "/"
+                  : pathname === item.path || pathname.startsWith(`${item.path}/`);
               return (
                 <div key={section.id} className="mb-2">
                   <Link
