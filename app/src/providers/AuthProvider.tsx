@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithCustomToken,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   type User,
@@ -18,6 +19,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithPasskey: (email?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -80,6 +82,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }).catch((err) => console.error("Session sync failed", err));
   };
 
+  const signInWithPasskey = async (email?: string) => {
+    const { startAuthentication } = await import("@simplewebauthn/browser");
+
+    const optionsRes = await fetch("/api/auth/webauthn/auth-options", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(email ? { email } : {}),
+    });
+    if (!optionsRes.ok) throw new Error("Couldn't start passkey sign-in");
+
+    const assertion = await startAuthentication({
+      optionsJSON: await optionsRes.json(),
+    });
+
+    const verifyRes = await fetch("/api/auth/webauthn/auth-verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assertion }),
+    });
+    if (!verifyRes.ok) {
+      const err = await verifyRes.json().catch(() => ({}));
+      throw new Error(err.error || "Passkey not recognised");
+    }
+
+    const { customToken } = await verifyRes.json();
+    const result = await signInWithCustomToken(auth, customToken);
+    const token = await result.user.getIdToken();
+    await fetch("/api/auth/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    }).catch((err) => console.error("Session sync failed", err));
+  };
+
   const signOut = async () => {
     await fetch("/api/auth/session", { method: "DELETE" }).catch((err) =>
       console.error("Session clear failed", err)
@@ -89,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signIn, signUp, signInWithGoogle, signOut }}
+      value={{ user, loading, signIn, signUp, signInWithGoogle, signInWithPasskey, signOut }}
     >
       {children}
     </AuthContext.Provider>
