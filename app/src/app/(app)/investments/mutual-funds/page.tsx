@@ -95,21 +95,27 @@ export default function MutualFundsPage() {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<FundResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
     if (search.trim().length < 2) {
       setResults([]);
+      setSearchError(null);
       return;
     }
     searchTimer.current = setTimeout(async () => {
       setSearching(true);
+      setSearchError(null);
       try {
         const res = await fundsAPI.search(search.trim());
         setResults((res.funds as FundResult[]) || []);
-      } catch {
+      } catch (err) {
         setResults([]);
+        setSearchError(
+          err instanceof Error ? err.message : "Fund search is unavailable right now"
+        );
       } finally {
         setSearching(false);
       }
@@ -350,7 +356,12 @@ export default function MutualFundsPage() {
                     ))}
                   </div>
                 )}
-                {search.trim().length >= 2 && !searching && results.length === 0 && (
+                {search.trim().length >= 2 && !searching && searchError && (
+                  <p className="mt-1 text-[11px] text-danger px-1">
+                    {searchError}. You can still enter fund details manually below.
+                  </p>
+                )}
+                {search.trim().length >= 2 && !searching && !searchError && results.length === 0 && (
                   <p className="mt-1 text-[11px] text-muted-foreground px-1">
                     No matches. The fund index refreshes daily — you can still enter details manually below.
                   </p>

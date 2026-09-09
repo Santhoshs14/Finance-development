@@ -45,8 +45,6 @@ export async function POST(req: NextRequest) {
     void appendAudit(decoded.uid, "auth.login", {
       ip: req.headers.get("x-forwarded-for") ?? null,
       userAgent: req.headers.get("user-agent") ?? null,
-    }).catch(() => {
-      /* ignore */
     });
 
     return response;

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { createLendingSchema } from "@/schemas/lending";
+import { zodErrorResponse } from "@/lib/api-handler";
 
 export async function GET(req: NextRequest) {
   const auth = await verifyAuth(req);
@@ -22,20 +24,16 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
 
-  const body = await req.json();
-  const { type, person_name, amount, date, description, status } = body;
+  const body = await req.json().catch(() => null);
+  const parsed = createLendingSchema.safeParse(body);
+  if (!parsed.success) return zodErrorResponse(parsed.error);
 
-  if (!type || !person_name || !amount || !date) {
-    return NextResponse.json(
-      { error: "Missing required fields: type, person_name, amount, date" },
-      { status: 400 }
-    );
-  }
+  const { type, person_name, amount, date, description, status } = parsed.data;
 
   const data = {
     type,
     person_name,
-    amount: parseFloat(amount),
+    amount,
     paid_amount: 0,
     date,
     description: description || "",

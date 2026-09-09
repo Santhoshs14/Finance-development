@@ -84,7 +84,7 @@ export default function PdfImportPage() {
       }
       const data = await res.json();
       toast.success(`Imported ${data.imported ?? selected.size} transactions`);
-      router.push("/transactions");
+      router.push("/money/transactions");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Import failed";
       toast.error(msg);

@@ -19,7 +19,7 @@ export async function DELETE(
   }
 
   const docRef = adminDb.doc(
-    `users/${uid}/budgetSnapshots/${cycleKey}/budgets/${id}`
+    `users/${uid}/budgetSnapshots/${cycleKey}/categories/${id}`
   );
   const doc = await docRef.get();
   if (!doc.exists) {

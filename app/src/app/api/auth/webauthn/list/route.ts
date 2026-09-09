@@ -35,7 +35,7 @@ export const DELETE = createHandler(
     await deletePasskey(uid, query.credentialId);
     void appendAudit(uid, "auth.passkey_deleted", {
       credentialId: query.credentialId,
-    }).catch(() => {});
+    });
     return { deleted: true };
   }
 );

@@ -11,6 +11,10 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { detectAndParse } from "@/server/parsers";
 
+// pdfjs needs Node built-ins; without this Vercel defaults to the Edge runtime and the route fails.
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(req: NextRequest) {

@@ -138,9 +138,11 @@ export default function RecurringPage() {
     }
 
     if (toCreate.length === 0) return;
-    Promise.all(toCreate.map((d) => recurringAPI.create(d))).then(() => {
-      toast.success(`Migrated ${toCreate.length} recurring item(s)`);
-    }).catch(() => {});
+    Promise.all(toCreate.map((d) => recurringAPI.create(d)))
+      .then(() => {
+        toast.success(`Migrated ${toCreate.length} recurring item(s)`);
+      })
+      .catch(() => toast.error("Couldn't migrate recurring items"));
   }, [recurring, transactions]);
 
   // Mutations

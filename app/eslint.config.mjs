@@ -14,6 +14,17 @@ const eslintConfig = defineConfig([
       "react-hooks/purity": "off",
       // Unused vars: warn only, prefix with _ to silence
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      // Silently swallowed failures hid several production bugs — make them visible.
+      "no-empty": ["error", { allowEmptyCatch: false }],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name='catch'] > ArrowFunctionExpression[body.type='BlockStatement'][body.body.length=0]",
+          message:
+            "Empty .catch() hides failures. Log it, surface it to the user, or add a comment explaining why it is safe to ignore.",
+        },
+      ],
     },
   },
   // Override default ignores of eslint-config-next.

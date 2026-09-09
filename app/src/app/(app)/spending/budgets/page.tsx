@@ -52,7 +52,10 @@ export default function BudgetsPage() {
   // Load salary from profile
   useEffect(() => {
     if (!user) return;
-    profileAPI.get().then((p) => { if (p?.monthlySalary) setSalary(p.monthlySalary); }).catch(() => {});
+    profileAPI
+      .get()
+      .then((p) => { if (p?.monthlySalary) setSalary(p.monthlySalary); })
+      .catch(() => toast.error("Couldn't load your income — budget targets may be off"));
   }, [user]);
 
   // Load budget snapshots for the cycle

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import toast from "react-hot-toast";
 
 export const WIDGET_IDS = [
   "kpi-strip",
@@ -31,6 +32,14 @@ const DEFAULT_LAYOUT: DashboardLayout = {
   hidden: [],
 };
 
+async function persistLayout(uid: string, next: DashboardLayout) {
+  try {
+    await setDoc(doc(db, `users/${uid}`), { dashboardLayout: next }, { merge: true });
+  } catch {
+    toast.error("Couldn't save dashboard layout — it will reset on reload");
+  }
+}
+
 export function useDashboardLayout() {
   const { user } = useAuth();
   const [layout, setLayout] = useState<DashboardLayout>(DEFAULT_LAYOUT);
@@ -55,11 +64,7 @@ export function useDashboardLayout() {
   const updateLayout = useCallback(async (newLayout: DashboardLayout) => {
     setLayout(newLayout);
     if (!user) return;
-    try {
-      await setDoc(doc(db, `users/${user.uid}`), { dashboardLayout: newLayout }, { merge: true });
-    } catch {
-      // Silent fail — layout will still work in memory
-    }
+    await persistLayout(user.uid, newLayout);
   }, [user]);
 
   const reorder = useCallback((activeId: WidgetId, overId: WidgetId) => {
@@ -73,7 +78,7 @@ export function useDashboardLayout() {
       const next = { ...prev, order };
       // Persist async
       if (user) {
-        setDoc(doc(db, `users/${user.uid}`), { dashboardLayout: next }, { merge: true }).catch(() => {});
+        void persistLayout(user.uid, next);
       }
       return next;
     });
@@ -86,7 +91,7 @@ export function useDashboardLayout() {
         : [...prev.hidden, id];
       const next = { ...prev, hidden };
       if (user) {
-        setDoc(doc(db, `users/${user.uid}`), { dashboardLayout: next }, { merge: true }).catch(() => {});
+        void persistLayout(user.uid, next);
       }
       return next;
     });

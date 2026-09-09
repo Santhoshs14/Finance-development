@@ -5,6 +5,11 @@ import { rateLimit } from "@/lib/rate-limit";
 import { USER_DATA_COLLECTIONS } from "@/server/userData";
 import { logger } from "@/lib/logger";
 
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+const PAGE_SIZE = 500;
+
 /**
  * GET /api/export
  * Exports all user data as JSON for backup/portability.
@@ -22,45 +27,57 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  try {
-    const exportData: Record<string, unknown[]> = {};
+  const profileDoc = await adminDb.doc(`users/${uid}`).get();
+  const profile = profileDoc.exists ? profileDoc.data() : null;
 
-    // Read profile
-    const profileDoc = await adminDb.doc(`users/${uid}`).get();
-    const profile = profileDoc.exists ? profileDoc.data() : null;
+  const encoder = new TextEncoder();
+  // Streamed so large accounts don't buffer the whole export in memory or trip the body limit.
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const push = (s: string) => controller.enqueue(encoder.encode(s));
+      try {
+        push(`{"exportedAt":${JSON.stringify(new Date().toISOString())},`);
+        push(`"profile":${JSON.stringify(profile)}`);
 
-    // Read each subcollection
-    for (const col of USER_DATA_COLLECTIONS) {
-      const snap = await adminDb
-        .collection(`users/${uid}/${col}`)
-        .orderBy("__name__")
-        .limit(10000)
-        .get();
+        for (const col of USER_DATA_COLLECTIONS) {
+          push(`,${JSON.stringify(col)}:[`);
+          let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+          let first = true;
 
-      exportData[col] = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-    }
+          for (;;) {
+            let q = adminDb
+              .collection(`users/${uid}/${col}`)
+              .orderBy("__name__")
+              .limit(PAGE_SIZE);
+            if (cursor) q = q.startAfter(cursor);
+            const snap = await q.get();
+            if (snap.empty) break;
 
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      profile,
-      ...exportData,
-    };
+            for (const doc of snap.docs) {
+              push((first ? "" : ",") + JSON.stringify({ id: doc.id, ...doc.data() }));
+              first = false;
+            }
+            if (snap.size < PAGE_SIZE) break;
+            cursor = snap.docs[snap.size - 1];
+          }
+          push("]");
+        }
 
-    return new NextResponse(JSON.stringify(payload, null, 2), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="wealthflow-export-${new Date().toISOString().split("T")[0]}.json"`,
-      },
-    });
-  } catch (error) {
-    logger.error({ event: "export.failed", uid }, error);
-    return NextResponse.json(
-      { error: "Export failed" },
-      { status: 500 }
-    );
-  }
+        push("}");
+        controller.close();
+      } catch (error) {
+        logger.error({ event: "export.failed", uid }, error);
+        controller.error(error);
+      }
+    },
+  });
+
+  return new NextResponse(stream, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      "Content-Disposition": `attachment; filename="wealthflow-export-${new Date().toISOString().split("T")[0]}.json"`,
+    },
+  });
 }

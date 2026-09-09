@@ -23,9 +23,15 @@ export interface FxRates {
 }
 
 export async function fetchFxRates(): Promise<FxRates> {
-  const baseUrl = (
+  const configured = (
     process.env.FX_API_BASE_URL || "https://open.er-api.com/v6"
   ).replace(/\/$/, "");
+  // Reject non-http(s) schemes so a bad env value can't turn this into an SSRF/file read.
+  const parsed = new URL(configured);
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new Error(`FX_API_BASE_URL must be http(s), got ${parsed.protocol}`);
+  }
+  const baseUrl = configured;
   const date = new Date().toISOString().slice(0, 10);
 
   try {

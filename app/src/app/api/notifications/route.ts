@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { createNotificationSchema } from "@/schemas/notification";
+import { zodErrorResponse } from "@/lib/api-handler";
 
 /**
  * GET /api/notifications
@@ -36,20 +38,17 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
 
-  const body = await req.json();
-  const { type, title, message } = body;
+  const body = await req.json().catch(() => null);
+  const parsed = createNotificationSchema.safeParse(body);
+  if (!parsed.success) return zodErrorResponse(parsed.error);
 
-  if (!type || !title || !message) {
-    return NextResponse.json(
-      { error: "type, title, and message are required" },
-      { status: 400 }
-    );
-  }
+  const { type, title, message, link } = parsed.data;
 
   const ref = await adminDb.collection(`users/${uid}/notifications`).add({
     type,
     title,
     message,
+    ...(link ? { link } : {}),
     read: false,
     createdAt: FieldValue.serverTimestamp(),
   });

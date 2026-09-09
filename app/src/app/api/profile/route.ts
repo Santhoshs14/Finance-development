@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb, adminAuth } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { deleteUserData } from "@/server/repos/profile";
+
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   const auth = await verifyAuth(req);
@@ -60,24 +63,7 @@ export async function DELETE(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
 
-  // Delete subcollections
-  const subcollections = [
-    "transactions", "accounts", "categories", "aggregates",
-    "budgetSnapshots", "goals", "investments", "lending", "profile",
-  ];
-
-  for (const sub of subcollections) {
-    const colRef = adminDb.collection(`users/${uid}/${sub}`);
-    const docs = await colRef.listDocuments();
-    const batch = adminDb.batch();
-    docs.forEach((d) => batch.delete(d));
-    if (docs.length > 0) await batch.commit();
-  }
-
-  // Delete user document
-  await adminDb.doc(`users/${uid}`).delete();
-
-  // Delete Firebase Auth user
+  await deleteUserData(uid);
   await adminAuth.deleteUser(uid);
 
   return NextResponse.json({ message: "Account deleted" });

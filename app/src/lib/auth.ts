@@ -53,7 +53,8 @@ export async function verifyAuth(
 
   try {
     if (!token) throw new Error("Empty token");
-    const decoded = await adminAuth.verifyIdToken(token);
+    // checkRevoked so password resets and "sign out everywhere" invalidate live tokens.
+    const decoded = await adminAuth.verifyIdToken(token, true);
     return { uid: decoded.uid };
   } catch {
     return NextResponse.json(

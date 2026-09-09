@@ -71,7 +71,7 @@ export const POST = createHandler(
 
     void appendAudit(owner.uid, "auth.passkey_login", {
       credentialId: owner.passkey.credentialId,
-    }).catch(() => {});
+    });
 
     const customToken = await adminAuth.createCustomToken(owner.uid);
     return { customToken };

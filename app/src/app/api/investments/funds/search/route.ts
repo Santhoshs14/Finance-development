@@ -38,6 +38,18 @@ export async function GET(req: NextRequest) {
     .limit(20)
     .get();
 
+  if (snap.empty) {
+    // Distinguish "no such fund" from "the NAV index was never built".
+    const probe = await adminDb.collection("system/navIndex/funds").limit(1).get();
+    if (probe.empty) {
+      return NextResponse.json(
+        { error: "Fund index is still building. Try again after the next NAV refresh." },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json({ funds: [] });
+  }
+
   const funds = snap.docs.map((d) => {
     const data = d.data();
     return {

@@ -56,7 +56,7 @@ export const POST = createHandler(
     void appendAudit(uid, "auth.passkey_registered", {
       credentialId: credential.id,
       deviceType: verification.registrationInfo.credentialDeviceType,
-    }).catch(() => {});
+    });
 
     return { verified: true };
   }

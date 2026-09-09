@@ -8,6 +8,7 @@ import {
   transactionListQuerySchema,
 } from "@/schemas/transaction";
 import { zodErrorResponse } from "@/lib/api-handler";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/transactions
@@ -295,7 +296,9 @@ export async function POST(req: NextRequest) {
 
   // Budget proximity alert (fire-and-forget, non-blocking)
   if (type === "expense") {
-    checkBudgetAlert(uid, category, cycleKey, numAmount).catch(() => {});
+    checkBudgetAlert(uid, category, cycleKey, numAmount).catch((err) =>
+      logger.warn({ event: "budget.alert_failed", uid, cycleKey }, err)
+    );
   }
 
   return NextResponse.json(

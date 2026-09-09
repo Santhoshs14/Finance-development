@@ -1,6 +1,7 @@
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import type { ProfileDoc, UpdateProfileInput } from "@/schemas";
+import { logger } from "@/lib/logger";
 import { snapToSerialized } from "./helpers";
 
 const ROOT_FIELDS_TO_MIRROR = [
@@ -50,44 +51,31 @@ export async function updateProfile(
 
 /** Cascade-delete all subcollections and the root user doc. */
 export async function deleteUserData(uid: string): Promise<void> {
-  const subcollections = [
-    "transactions",
-    "accounts",
-    "categories",
-    "aggregates",
-    "budgetSnapshots",
-    "goals",
-    "investments",
-    "lending",
-    "profile",
-    "recurring",
-    "notifications",
-    "splits",
-    "emis",
-    "netWorthSnapshots",
-    "audit",
-    "fcmTokens",
-    "passkeys",
-    "navHistory",
-  ];
-
   const userRoot = adminDb.doc(`users/${uid}`);
-  for (const sub of subcollections) {
-    await adminDb.recursiveDelete(userRoot.collection(sub));
+
+  // Enumerated at runtime so newly added subcollections can never be missed.
+  const collections = await userRoot.listCollections();
+  for (const col of collections) {
+    await adminDb.recursiveDelete(col);
   }
   await userRoot.delete();
 }
 
+/** Best-effort: audit writes must never fail the request that triggered them. */
 export async function appendAudit(
   uid: string,
   event: string,
   details?: Record<string, unknown>
 ): Promise<void> {
-  await adminDb.collection(`users/${uid}/audit`).add({
-    event,
-    details: details ?? null,
-    at: FieldValue.serverTimestamp(),
-  });
+  try {
+    await adminDb.collection(`users/${uid}/audit`).add({
+      event,
+      details: details ?? null,
+      at: FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    logger.warn({ event: "audit.append_failed", uid, auditEvent: event }, err);
+  }
 }
 
 export async function listAudit(uid: string, limit = 50) {

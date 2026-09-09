@@ -64,7 +64,11 @@ export async function sendPush(uid: string, payload: PushPayload): Promise<{ sen
             code.includes("invalid-registration-token") ||
             code.includes("invalid-argument")
           ) {
-            await doc.ref.delete().catch(() => {});
+            await doc.ref
+              .delete()
+              .catch((delErr) =>
+                logger.warn({ event: "push.token_cleanup_failed", uid, code }, delErr)
+              );
           } else {
             logger.warn({ event: "push.send_failed", uid, code }, err);
           }

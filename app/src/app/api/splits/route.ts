@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { createSplitSchema } from "@/schemas/split";
+import { zodErrorResponse } from "@/lib/api-handler";
 
 export async function GET(req: NextRequest) {
   const auth = await verifyAuth(req);
@@ -22,24 +24,20 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
 
-  const body = await req.json();
-  const { description, total_amount, date, participants, paid_by } = body;
+  const body = await req.json().catch(() => null);
+  const parsed = createSplitSchema.safeParse(body);
+  if (!parsed.success) return zodErrorResponse(parsed.error);
 
-  if (!description || !total_amount || !date || !participants?.length || !paid_by) {
-    return NextResponse.json(
-      { error: "Missing required fields: description, total_amount, date, participants, paid_by" },
-      { status: 400 }
-    );
-  }
+  const { description, total_amount, date, participants, paid_by } = parsed.data;
 
   const data = {
-    description: String(description).slice(0, 200),
-    total_amount: parseFloat(total_amount),
+    description,
+    total_amount,
     date,
     paid_by,
-    participants, // Array of { name, share }
+    participants,
     settled: false,
-    settlements: [], // Array of { from, to, amount, date }
+    settlements: [] as unknown[],
     createdAt: FieldValue.serverTimestamp(),
   };
 
