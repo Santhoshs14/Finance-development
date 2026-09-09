@@ -50,7 +50,7 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: '1:000:web:0000'
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
@@ -162,7 +162,7 @@ jobs:
           DEV_AUTH_BYPASS: 'true'
 
       - name: Upload Playwright report on failure
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
@@ -176,7 +176,7 @@ jobs:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 
       - name: Upload Lighthouse artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: lighthouse-report
