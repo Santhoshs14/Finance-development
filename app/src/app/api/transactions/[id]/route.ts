@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { adminDb } from "@/lib/firebase-admin";
-import { FieldValue, DocumentReference } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { getFinancialCycleForDate } from "@/utils/financialMonth";
+import {
+  applyAggregateDeltas,
+  getInvestmentCategories,
+} from "@/server/repos/aggregates";
+import { transitionDeltas, type AggregatableTxn } from "@/server/aggregates/delta";
+
+const EDITABLE_FIELDS = [
+  "description",
+  "notes",
+  "category",
+  "date",
+  "payment_type",
+  "is_recurring",
+  "recurring_frequency",
+] as const;
 
 /**
  * PATCH /api/transactions/[id]
@@ -16,86 +32,76 @@ export async function PATCH(
   const { uid } = auth;
   const { id } = await params;
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
 
-  // Only allow updating safe fields
-  const allowedFields = ["description", "notes", "category", "date", "payment_type", "is_recurring", "recurring_frequency"];
   const updates: Record<string, unknown> = {};
-  for (const key of allowedFields) {
-    if (body[key] !== undefined) {
-      updates[key] = body[key];
-    }
+  for (const key of EDITABLE_FIELDS) {
+    if (body[key] !== undefined) updates[key] = body[key];
   }
   // Accept frontend field name alias
-  if (body.recurrence_interval !== undefined && !updates.recurring_frequency) {
+  if (
+    body.recurrence_interval !== undefined &&
+    updates.recurring_frequency === undefined
+  ) {
     updates.recurring_frequency = body.recurrence_interval;
   }
 
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json(
-      { error: "No valid fields to update" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
-  updates["updatedAt"] = FieldValue.serverTimestamp();
-
   const docRef = adminDb.doc(`users/${uid}/transactions/${id}`);
-  const doc = await docRef.get();
+  const [doc, profileDoc, investmentCategories] = await Promise.all([
+    docRef.get(),
+    adminDb.doc(`users/${uid}`).get(),
+    getInvestmentCategories(uid),
+  ]);
 
   if (!doc.exists) {
     return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
   }
 
-  // If category changed, update aggregates and handle type/amount flip
-  const oldData = doc.data()!;
-  if (updates.category && updates.category !== oldData.category) {
-    const cycleKey = oldData.cycleKey || oldData._cycleKey;
-    const absAmount = Math.abs(oldData.amount);
-    const oldType = oldData.type;
+  const before = doc.data()! as AggregatableTxn & Record<string, unknown>;
+  const startDay = profileDoc.exists ? profileDoc.data()?.cycleStartDay || 25 : 25;
+  const magnitude = Math.abs(Number(before.amount) || 0);
+
+  // A category change can flip income<->expense, which also flips the stored sign.
+  if (updates.category !== undefined && updates.category !== before.category) {
     const newType = updates.category === "Income" ? "income" : "expense";
-    const typeChanged = oldType !== newType;
-
-    // If type flips (income↔expense), update amount sign and type
-    if (typeChanged) {
+    if (newType !== before.type) {
       updates.type = newType;
-      updates.amount = newType === "expense" ? -absAmount : absAmount;
-    }
-
-    if (cycleKey) {
-      const aggregateRef = adminDb.doc(`users/${uid}/aggregates/${cycleKey}`);
-      await adminDb.runTransaction(async (transaction) => {
-        const aggUpdates: Record<string, unknown> = {};
-
-        if (typeChanged) {
-          // Moving between income and expense — adjust both totals
-          if (oldType === "income") {
-            aggUpdates["totalIncome"] = FieldValue.increment(-absAmount);
-            aggUpdates["categoryBreakdown.Income"] = FieldValue.increment(-absAmount);
-            aggUpdates["totalSpent"] = FieldValue.increment(absAmount);
-            aggUpdates[`categoryBreakdown.${updates.category}`] = FieldValue.increment(absAmount);
-          } else {
-            aggUpdates["totalSpent"] = FieldValue.increment(-absAmount);
-            aggUpdates[`categoryBreakdown.${oldData.category}`] = FieldValue.increment(-absAmount);
-            aggUpdates["totalIncome"] = FieldValue.increment(absAmount);
-            aggUpdates["categoryBreakdown.Income"] = FieldValue.increment(absAmount);
-          }
-        } else if (oldType === "expense") {
-          // Same type, just category reassignment
-          aggUpdates[`categoryBreakdown.${oldData.category}`] = FieldValue.increment(-absAmount);
-          aggUpdates[`categoryBreakdown.${updates.category}`] = FieldValue.increment(absAmount);
-        }
-
-        if (Object.keys(aggUpdates).length > 0) {
-          transaction.update(aggregateRef, aggUpdates);
-        }
-        transaction.update(docRef, updates);
-      });
-      return NextResponse.json({ message: "Transaction updated" });
+      updates.amount = newType === "expense" ? -magnitude : magnitude;
     }
   }
 
-  await docRef.update(updates);
+  // Moving the date can move the transaction into a different cycle; without
+  // this the row shows under the new cycle while its totals stay in the old one.
+  if (updates.date !== undefined && updates.date !== before.date) {
+    updates.cycleKey = getFinancialCycleForDate(String(updates.date), startDay).cycleKey;
+  }
+
+  const after: AggregatableTxn = {
+    amount: (updates.amount as number) ?? before.amount,
+    type: (updates.type as string) ?? before.type,
+    category: (updates.category as string) ?? before.category,
+    payment_type: (updates.payment_type as string) ?? before.payment_type,
+    cycleKey: (updates.cycleKey as string) ?? before.cycleKey,
+  };
+
+  updates.updatedAt = FieldValue.serverTimestamp();
+
+  await adminDb.runTransaction(async (transaction) => {
+    transaction.update(docRef, updates);
+    applyAggregateDeltas(
+      transaction,
+      uid,
+      transitionDeltas(before, after, investmentCategories)
+    );
+  });
+
   return NextResponse.json({ message: "Transaction updated" });
 }
 
@@ -113,76 +119,74 @@ export async function DELETE(
   const { id } = await params;
 
   const docRef = adminDb.doc(`users/${uid}/transactions/${id}`);
-  const doc = await docRef.get();
+  const [doc, investmentCategories] = await Promise.all([
+    docRef.get(),
+    getInvestmentCategories(uid),
+  ]);
 
   if (!doc.exists) {
     return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
   }
 
   const data = doc.data()!;
-  const linkedId = data.linked_transfer_id;
+  const linkedId = data.linked_transfer_id as string | undefined;
+
+  // Both halves of a paired transfer are removed together.
+  const targets: {
+    ref: FirebaseFirestore.DocumentReference;
+    data: Record<string, unknown>;
+  }[] = [{ ref: docRef, data }];
+
+  if (linkedId) {
+    const linkedRef = adminDb.doc(`users/${uid}/transactions/${linkedId}`);
+    const linkedSnap = await linkedRef.get();
+    if (linkedSnap.exists) targets.push({ ref: linkedRef, data: linkedSnap.data()! });
+  }
+
+  const accountIds = [
+    ...new Set(
+      targets.map((t) => t.data.account_id as string).filter((v): v is string => !!v)
+    ),
+  ];
 
   await adminDb.runTransaction(async (transaction) => {
-    // Helper to reverse a single transaction's effects
-    const reverseAndDelete = async (txnData: Record<string, unknown>, txnRef: DocumentReference) => {
-      const amt = Math.abs(txnData.amount as number);
-      const txnType = txnData.type as string;
-      const txnAccountId = txnData.account_id as string;
-      const txnCycleKey = (txnData.cycleKey || txnData._cycleKey) as string;
-      const txnCategory = txnData.category as string;
-      const txnIsTransfer = txnData.payment_type === "Self Transfer" || txnCategory === "Transfer" || txnCategory === "Credit Card Payment";
+    // Firestore requires every read in a transaction to precede every write.
+    const accountRefs = accountIds.map((accountId) =>
+      adminDb.doc(`users/${uid}/accounts/${accountId}`)
+    );
+    const accountSnaps = accountRefs.length
+      ? await transaction.getAll(...accountRefs)
+      : [];
+    const isCredit = new Map(
+      accountSnaps.map((snap) => [snap.id, snap.exists && snap.data()!.type === "credit"])
+    );
+    const exists = new Map(accountSnaps.map((snap) => [snap.id, snap.exists]));
 
-      // Reverse account balance
-      if (txnAccountId) {
-        const accountRef = adminDb.doc(`users/${uid}/accounts/${txnAccountId}`);
-        const accountSnap = await transaction.get(accountRef);
-        if (accountSnap.exists) {
-          const accountData = accountSnap.data()!;
-          const isCredit = accountData.type === "credit";
-          if (isCredit) {
-            transaction.update(accountRef, {
-              liability: FieldValue.increment(txnType === "expense" ? -amt : amt),
-            });
-          } else {
-            if (txnType === "expense") {
-              transaction.update(accountRef, { balance: FieldValue.increment(amt) });
-            } else if (txnType === "income") {
-              transaction.update(accountRef, { balance: FieldValue.increment(-amt) });
-            }
-          }
+    for (const target of targets) {
+      const amount = Math.abs(Number(target.data.amount) || 0);
+      const type = target.data.type as string;
+      const accountId = target.data.account_id as string | undefined;
+
+      if (accountId && exists.get(accountId)) {
+        const accountRef = adminDb.doc(`users/${uid}/accounts/${accountId}`);
+        if (isCredit.get(accountId)) {
+          transaction.update(accountRef, {
+            liability: FieldValue.increment(type === "expense" ? -amount : amount),
+          });
+        } else {
+          transaction.update(accountRef, {
+            balance: FieldValue.increment(type === "expense" ? amount : -amount),
+          });
         }
       }
 
-      // Reverse aggregate (skip for transfers)
-      if (txnCycleKey && !txnIsTransfer) {
-        const aggregateRef = adminDb.doc(`users/${uid}/aggregates/${txnCycleKey}`);
-        const aggUpdate: Record<string, unknown> = {
-          transactionCount: FieldValue.increment(-1),
-          updatedAt: FieldValue.serverTimestamp(),
-        };
-        if (txnType === "expense") {
-          aggUpdate["totalSpent"] = FieldValue.increment(-amt);
-          aggUpdate[`categoryBreakdown.${txnCategory}`] = FieldValue.increment(-amt);
-        } else if (txnType === "income") {
-          aggUpdate["totalIncome"] = FieldValue.increment(-amt);
-          aggUpdate["categoryBreakdown.Income"] = FieldValue.increment(-amt);
-        }
-        transaction.update(aggregateRef, aggUpdate);
-      }
+      applyAggregateDeltas(
+        transaction,
+        uid,
+        transitionDeltas(target.data as AggregatableTxn, null, investmentCategories)
+      );
 
-      transaction.delete(txnRef);
-    };
-
-    // Delete the primary transaction
-    await reverseAndDelete(data, docRef);
-
-    // If it's a paired transfer, also delete the linked transaction
-    if (linkedId) {
-      const linkedRef = adminDb.doc(`users/${uid}/transactions/${linkedId}`);
-      const linkedSnap = await transaction.get(linkedRef);
-      if (linkedSnap.exists) {
-        await reverseAndDelete(linkedSnap.data()!, linkedRef);
-      }
+      transaction.delete(target.ref);
     }
   });
 

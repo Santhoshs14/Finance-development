@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { zodErrorResponse } from "@/lib/api-handler";
 import { prepareImportRows, computeImportDeltas } from "@/server/import/prepareRows";
+import { getInvestmentCategories } from "@/server/repos/aggregates";
 
 export const maxDuration = 60;
 
@@ -66,7 +67,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, count: 0, imported: 0, skipped });
     }
 
-    const { aggregates, accounts } = computeImportDeltas(fresh);
+    const { aggregates, accounts } = computeImportDeltas(
+      fresh,
+      await getInvestmentCategories(uid)
+    );
     const batch = adminDb.batch();
 
     for (const row of fresh) {

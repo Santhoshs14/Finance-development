@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { verifyAuth } from "@/lib/auth";
 import { logger } from "@/lib/logger";
+import {
+  claimIdempotencyKey,
+  completeIdempotencyKey,
+  releaseIdempotencyKey,
+} from "@/lib/idempotency";
 
 /**
  * Standardized error response shape returned by every API route.
@@ -81,6 +86,8 @@ interface HandlerOptions<TParams, TBody, TQuery> {
   params?: ZodType<TParams>;
   /** Event name used for log/Sentry tagging. */
   event?: string;
+  /** Honour the `Idempotency-Key` header so retries replay instead of duplicating. */
+  idempotent?: boolean;
 }
 
 type NextRouteContext<TParams> = { params: Promise<TParams> };
@@ -115,6 +122,7 @@ export function createHandler<
   ): Promise<NextResponse> {
     const start = Date.now();
     let uid = "";
+    let idempotencyKey: string | null = null;
 
     try {
       // Auth (default on)
@@ -122,6 +130,24 @@ export function createHandler<
         const result = await verifyAuth(req);
         if (result instanceof NextResponse) return result;
         uid = result.uid;
+      }
+
+      if (options.idempotent) {
+        const claim = await claimIdempotencyKey(
+          uid,
+          req.headers.get("idempotency-key")
+        );
+        if (claim.state === "replay") {
+          logger.info({ event: `${event}.idempotent_replay`, uid });
+          return NextResponse.json(claim.body, { status: claim.status });
+        }
+        if (claim.state === "in_flight") {
+          return NextResponse.json(
+            { error: "A request with this Idempotency-Key is still in progress", code: "IN_FLIGHT" },
+            { status: 409 }
+          );
+        }
+        if (claim.state === "claimed") idempotencyKey = claim.key;
       }
 
       // Params
@@ -170,6 +196,22 @@ export function createHandler<
           ? (result as NextResponse)
           : NextResponse.json(result ?? { ok: true });
 
+      if (idempotencyKey) {
+        // Only plain JSON results can be replayed verbatim.
+        const replayable =
+          !(result instanceof NextResponse) && !(result instanceof Response);
+        if (replayable) {
+          await completeIdempotencyKey(
+            uid,
+            idempotencyKey,
+            response.status,
+            result ?? { ok: true }
+          );
+        } else {
+          await releaseIdempotencyKey(uid, idempotencyKey);
+        }
+      }
+
       logger.info({
         event,
         uid,
@@ -181,6 +223,11 @@ export function createHandler<
 
       return response;
     } catch (err) {
+      if (idempotencyKey) {
+        await releaseIdempotencyKey(uid, idempotencyKey).catch((releaseErr) =>
+          logger.warn({ event: `${event}.idempotency_release_failed`, uid }, releaseErr)
+        );
+      }
       return handleError(err, { req, uid, event, start });
     }
   };

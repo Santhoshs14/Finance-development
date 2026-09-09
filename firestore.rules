@@ -249,6 +249,26 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ── Idempotency ledger — Admin SDK only. Reads are granted by the
+      // catch-all below (rules are OR-evaluated, so a `read: if false` here
+      // would be misleading); records only ever hold the owner's own prior
+      // response bodies, so owner-read is harmless. ──
+      match /_idempotency/{key} {
+        allow write: if false;
+      }
+
+      // ── Deletion tombstones — drive incremental sync. Owner reads only. ──
+      match /_tombstones/{id} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      // ── Sync beacon — bumped server-side on every write. Owner reads only. ──
+      match /_sync/{document=**} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
       // ── Catch-all: owner may READ any future read-model subcollection. ──
       // Writes are intentionally NOT granted here. Firestore evaluates match
       // rules with OR semantics, so a blanket `write` would override the

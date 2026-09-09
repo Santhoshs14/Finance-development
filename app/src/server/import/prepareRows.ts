@@ -1,6 +1,11 @@
 import { createHash } from "crypto";
 import { z } from "zod";
 import { getFinancialCycleForDate } from "@/utils/financialMonth";
+import {
+  transitionDeltas,
+  type AggregatableTxn,
+  type CycleDeltas,
+} from "@/server/aggregates/delta";
 
 export const batchItemSchema = z.object({
   date: z
@@ -101,23 +106,25 @@ export function prepareImportRows(
 }
 
 /** Aggregate field deltas keyed by cycle, plus per-account balance deltas. */
-export function computeImportDeltas(rows: PreparedRow[]) {
-  const aggregates = new Map<string, Map<string, number>>();
+export function computeImportDeltas(
+  rows: PreparedRow[],
+  investmentCategories: Set<string> = new Set()
+) {
+  const aggregates: CycleDeltas = new Map();
   const accounts = new Map<string, number>();
 
   for (const row of rows) {
-    const agg = aggregates.get(row.cycleKey) ?? new Map<string, number>();
-    const bump = (field: string, by: number) => agg.set(field, (agg.get(field) ?? 0) + by);
-
-    if (row.type === "expense") {
-      bump("totalSpent", row.magnitude);
-      bump(`categoryBreakdown.${row.category}`, row.magnitude);
-    } else {
-      bump("totalIncome", row.magnitude);
-      bump("categoryBreakdown.Income", row.magnitude);
+    for (const [cycleKey, fields] of transitionDeltas(
+      null,
+      row.data as AggregatableTxn,
+      investmentCategories
+    )) {
+      const existing = aggregates.get(cycleKey) ?? new Map<string, number>();
+      for (const [field, by] of fields) {
+        existing.set(field, (existing.get(field) ?? 0) + by);
+      }
+      aggregates.set(cycleKey, existing);
     }
-    bump("transactionCount", 1);
-    aggregates.set(row.cycleKey, agg);
 
     if (row.accountId) {
       const delta = row.type === "expense" ? -row.magnitude : row.magnitude;

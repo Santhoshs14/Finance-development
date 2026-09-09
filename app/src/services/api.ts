@@ -1,5 +1,12 @@
 import { auth } from "@/lib/firebase";
 
+/** Stable per-request id so a retried mutation is not applied twice. */
+export function newIdempotencyKey(): string {
+  return globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 /**
  * Authenticated fetch wrapper.
  * Automatically attaches the Firebase ID token as a Bearer token.
@@ -55,6 +62,7 @@ export const transactionsAPI = {
   async create(data: Record<string, unknown>) {
     const res = await authFetch("/api/transactions", {
       method: "POST",
+      headers: { "Idempotency-Key": newIdempotencyKey() },
       body: JSON.stringify(data),
     });
     return res.json();

@@ -12,6 +12,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   Sun, Moon, Monitor, Calendar, Plus, Trash2, Download, LogOut,
   User, Settings2, Palette, Upload, AlertTriangle, IndianRupee, DollarSign, Euro, RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
@@ -749,12 +750,12 @@ function DataTab() {
         </CardContent>
       </Card>
 
-      {/* Recalculate Aggregates */}
+      {/* Data integrity */}
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><RefreshCw className="w-4 h-4 text-brand" /> Recalculate Data</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-success" /> Data Integrity</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Recalculates all monthly summaries (savings rate, investment tracking) across your entire history. Use this after category changes or if numbers look off.
+            Your monthly summaries are verified automatically every night and repaired if they ever disagree with your transactions. You should never need to do this by hand.
           </p>
           <Button
             variant="outline"
@@ -770,18 +771,18 @@ function DataTab() {
                   method: "POST",
                   headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
                 });
-                if (!res.ok) throw new Error("Recalculation failed");
+                if (!res.ok) throw new Error("Verification failed");
                 const data = await res.json();
-                toast.success(`Recalculated ${data.cyclesUpdated} months (${data.totalTransactions} transactions)`);
+                toast.success(`Verified ${data.cyclesUpdated} months (${data.totalTransactions} transactions)`);
               } catch {
-                toast.error("Recalculation failed");
+                toast.error("Verification failed");
               } finally {
                 setRecalculating(false);
               }
             }}
           >
             <RefreshCw className={`w-4 h-4 ${recalculating ? "animate-spin" : ""}`} />
-            {recalculating ? "Recalculating..." : "Recalculate All Aggregates"}
+            {recalculating ? "Verifying..." : "Verify now"}
           </Button>
         </CardContent>
       </Card>

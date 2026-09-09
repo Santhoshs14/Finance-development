@@ -9,6 +9,16 @@ import {
 } from "@/schemas/transaction";
 import { zodErrorResponse } from "@/lib/api-handler";
 import { logger } from "@/lib/logger";
+import {
+  applyAggregateDeltas,
+  getInvestmentCategories,
+} from "@/server/repos/aggregates";
+import { transitionDeltas } from "@/server/aggregates/delta";
+import {
+  claimIdempotencyKey,
+  completeIdempotencyKey,
+  releaseIdempotencyKey,
+} from "@/lib/idempotency";
 
 /**
  * GET /api/transactions
@@ -84,9 +94,51 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
 
+  // A double-tap or a network retry must not create a second transaction.
+  const claim = await claimIdempotencyKey(uid, req.headers.get("idempotency-key"));
+  if (claim.state === "replay") {
+    return NextResponse.json(claim.body, { status: claim.status });
+  }
+  if (claim.state === "in_flight") {
+    return NextResponse.json(
+      { error: "This transaction is already being saved" },
+      { status: 409 }
+    );
+  }
+  const idempotencyKey = claim.state === "claimed" ? claim.key : null;
+
+  try {
+    return await handleCreate(req, uid, idempotencyKey);
+  } catch (err) {
+    if (idempotencyKey) {
+      await releaseIdempotencyKey(uid, idempotencyKey).catch((releaseErr) =>
+        logger.warn({ event: "transactions.idempotency_release_failed", uid }, releaseErr)
+      );
+    }
+    throw err;
+  }
+}
+
+async function handleCreate(
+  req: NextRequest,
+  uid: string,
+  idempotencyKey: string | null
+) {
+  const respond = async (payload: Record<string, unknown>, status: number) => {
+    if (idempotencyKey && status < 400) {
+      await completeIdempotencyKey(uid, idempotencyKey, status, payload);
+    } else if (idempotencyKey) {
+      await releaseIdempotencyKey(uid, idempotencyKey);
+    }
+    return NextResponse.json(payload, { status });
+  };
+
   const body = await req.json();
   const parsedBody = createTransactionSchema.safeParse(body);
-  if (!parsedBody.success) return zodErrorResponse(parsedBody.error);
+  if (!parsedBody.success) {
+    if (idempotencyKey) await releaseIdempotencyKey(uid, idempotencyKey);
+    return zodErrorResponse(parsedBody.error);
+  }
 
   const {
     amount,
@@ -105,18 +157,15 @@ export async function POST(req: NextRequest) {
 
   // Validation — account_id is optional (e.g. cash transactions)
   if (amount === undefined || amount === null || !category || !date) {
-    return NextResponse.json(
+    return respond(
       { error: "Missing required fields: amount, category, date" },
-      { status: 400 }
+      400
     );
   }
 
   const rawAmount = parseFloat(String(amount));
   if (isNaN(rawAmount) || rawAmount === 0) {
-    return NextResponse.json(
-      { error: "Amount must be a non-zero number" },
-      { status: 400 }
-    );
+    return respond({ error: "Amount must be a non-zero number" }, 400);
   }
 
   // ─── Self Transfer: create paired transactions ───
@@ -190,9 +239,9 @@ export async function POST(req: NextRequest) {
       // No aggregate updates for transfers!
     });
 
-    return NextResponse.json(
+    return respond(
       { id: debitRef.id, creditId: creditRef.id, message: "Transfer created" },
-      { status: 201 }
+      201
     );
   }
 
@@ -228,70 +277,53 @@ export async function POST(req: NextRequest) {
 
   const hasAccount = !!resolvedAccountId;
   const accountRef = hasAccount ? adminDb.doc(`users/${uid}/accounts/${resolvedAccountId}`) : null;
-  const aggregateRef = adminDb.doc(`users/${uid}/aggregates/${cycleKey}`);
+  const investmentCategories = await getInvestmentCategories(uid);
+  const signedAmount = type === "expense" ? -numAmount : numAmount;
+
+  const txnData = {
+    amount: signedAmount,
+    type,
+    category,
+    account_id: resolvedAccountId,
+    date,
+    description: description || "",
+    notes: notes || "",
+    payment_type: payment_type || "",
+    is_recurring: is_recurring || false,
+    recurring_frequency: recurFrequency,
+    cycleKey,
+  };
 
   await adminDb.runTransaction(async (transaction) => {
-    let balanceChange = 0;
-
     if (accountRef) {
       const accountSnap = await transaction.get(accountRef);
       if (!accountSnap.exists) {
         throw new Error("Account not found");
       }
 
-      const accountData = accountSnap.data()!;
-      const isCredit = accountData.type === "credit";
-
-      // Calculate balance change
-      if (type === "expense") {
-        balanceChange = isCredit ? numAmount : -numAmount;
-      } else if (type === "income") {
-        balanceChange = numAmount;
-      }
-
-      // Update account
+      const isCredit = accountSnap.data()!.type === "credit";
       if (isCredit) {
         transaction.update(accountRef, {
           liability: FieldValue.increment(type === "expense" ? numAmount : -numAmount),
         });
       } else {
         transaction.update(accountRef, {
-          balance: FieldValue.increment(balanceChange),
+          balance: FieldValue.increment(type === "expense" ? -numAmount : numAmount),
         });
       }
     }
 
-    // Create transaction document — store signed amount (negative=expense, positive=income)
-    const signedAmount = type === "expense" ? -numAmount : numAmount;
-    const txnData = {
-      amount: signedAmount,
-      type,
-      category,
-      account_id: resolvedAccountId,
-      date,
-      description: description || "",
-      notes: notes || "",
-      payment_type: payment_type || "",
-      is_recurring: is_recurring || false,
-      recurring_frequency: recurFrequency,
-      cycleKey,
+    transaction.set(txnRef, {
+      ...txnData,
       createdAt: FieldValue.serverTimestamp(),
-    };
-    transaction.set(txnRef, txnData);
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
-    // Update aggregate
-    const aggUpdate: Record<string, unknown> = {};
-    if (type === "expense") {
-      aggUpdate["totalSpent"] = FieldValue.increment(numAmount);
-      aggUpdate[`categoryBreakdown.${category}`] = FieldValue.increment(numAmount);
-    } else if (type === "income") {
-      aggUpdate["totalIncome"] = FieldValue.increment(numAmount);
-      aggUpdate[`categoryBreakdown.Income`] = FieldValue.increment(numAmount);
-    }
-    aggUpdate["transactionCount"] = FieldValue.increment(1);
-    aggUpdate["updatedAt"] = FieldValue.serverTimestamp();
-
-    transaction.set(aggregateRef, aggUpdate, { merge: true });
+    applyAggregateDeltas(
+      transaction,
+      uid,
+      transitionDeltas(null, txnData, investmentCategories)
+    );
   });
 
   // Budget proximity alert (fire-and-forget, non-blocking)
@@ -301,10 +333,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json(
-    { id: txnRef.id, message: "Transaction created" },
-    { status: 201 }
-  );
+  return respond({ id: txnRef.id, message: "Transaction created" }, 201);
 }
 
 /**

@@ -7,7 +7,12 @@
  */
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
-import { recalcAggregate, getAggregate } from "@/server/repos/aggregates";
+import {
+  recalcAggregate,
+  getAggregate,
+  reconcileAggregate,
+} from "@/server/repos/aggregates";
+import { logger } from "@/lib/logger";
 import {
   computeUserNetWorth,
   saveNetWorthSnapshot,
@@ -39,9 +44,26 @@ export const aggregateRollupJob: CronJob<{ todayISO: string }> = {
     return { todayISO: new Date().toISOString() };
   },
   async processUser(uid, ctx) {
+    const today = new Date(ctx.todayISO);
     const cycleStartDay = await getCycleStartDay(uid);
-    const cycleKey = previousCycleKey(new Date(ctx.todayISO), cycleStartDay);
-    await recalcAggregate(uid, cycleKey);
+
+    // The closed cycle is authoritative once it ends, so just rewrite it.
+    await recalcAggregate(uid, previousCycleKey(today, cycleStartDay));
+
+    // The open cycle is maintained by live increments; verify it still matches
+    // the underlying transactions and self-heal when it does not.
+    const result = await reconcileAggregate(
+      uid,
+      currentCycleKey(today, cycleStartDay)
+    );
+    if (result.drifted) {
+      logger.warn({
+        event: "aggregate.drift_healed",
+        uid,
+        cycleKey: result.cycleKey,
+        fields: result.fields,
+      });
+    }
   },
 };
 
