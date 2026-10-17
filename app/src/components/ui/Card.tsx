@@ -7,11 +7,11 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "border border-border/60 bg-card/95 elev-1 hover:elev-2 hover:border-border",
-        glass: "glass elev-2 hover:elev-3",
-        elevated: "border border-border/40 bg-card elev-3",
-        floating: "border border-border/40 bg-card elev-4",
-        gradient: "border-0 hero-gradient text-white elev-3",
+        default: "border border-border/50 bg-card shadow-elev-1 hover:shadow-elev-2 dark:border-white/[0.06]",
+        glass: "glass shadow-elev-2 hover:shadow-elev-3",
+        elevated: "border border-border/40 bg-card shadow-elev-3 dark:border-white/[0.06]",
+        floating: "border border-border/40 bg-card shadow-elev-4 dark:border-white/[0.06]",
+        gradient: "border-0 hero-gradient text-white shadow-elev-3",
         outlined: "border border-border bg-transparent",
         ghost: "border-0 bg-transparent",
       },

@@ -268,8 +268,8 @@ export default function EMIsPage() {
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setConfirmPayId(emi.id)}>+1 month</Button>
-                      <button onClick={() => deleteEMI(emi.id)} className="p-1.5 text-danger/50 hover:text-danger transition-colors opacity-0 group-hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
+                      <Button variant="outline" size="sm" className="h-8 text-xs md:h-7 md:text-[10px]" onClick={() => setConfirmPayId(emi.id)}>+1 month</Button>
+                      <button onClick={() => deleteEMI(emi.id)} aria-label={`Delete ${emi.description}`} className="p-1.5 pointer-coarse:p-2.5 rounded-full text-danger/50 hover:text-danger transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"><X className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
 

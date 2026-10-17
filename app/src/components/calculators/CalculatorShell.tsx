@@ -34,7 +34,7 @@ export function CalculatorShell({
               <Icon className="w-5 h-5" />
             </span>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+              <h1 className="text-title2 font-bold text-foreground md:text-2xl">{title}</h1>
               <p className="text-sm text-muted-foreground">{description}</p>
             </div>
           </div>

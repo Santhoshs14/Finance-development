@@ -143,7 +143,7 @@ export default function PpfCalculatorPage() {
           data={result.schedule}
           xKey="year"
           stacked={false}
-          series={[{ key: "balance", name: "Balance", color: "#0080ff" }]}
+          series={[{ key: "balance", name: "Balance", color: "#007AFF" }]}
         />
 
         <BreakdownTable

@@ -113,7 +113,7 @@ export default function CCTransactionsPage() {
       <div className="flex gap-2">
         <div className="relative flex-1 max-w-xs">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search..." className="pl-9 h-8" />
+          <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search..." className="pl-9 md:h-8" />
         </div>
         <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="h-8 px-2 rounded-lg text-xs border border-border bg-card text-foreground">
           <option value="">All Categories</option>
@@ -139,17 +139,17 @@ export default function CCTransactionsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">{fmt(Math.abs(t.amount))}</span>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity">
                       <button
                         onClick={() => { setEditTxn(t as unknown as Record<string, unknown>); setShowAdd(true); }}
-                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        className="p-1.5 pointer-coarse:p-2.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         title="Edit transaction"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setConfirmDeleteId(t.id)}
-                        className="p-1.5 rounded-lg hover:bg-danger/10 text-muted-foreground hover:text-danger transition-colors"
+                        className="p-1.5 pointer-coarse:p-2.5 rounded-full hover:bg-danger/10 text-muted-foreground hover:text-danger transition-colors"
                         title="Delete transaction"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

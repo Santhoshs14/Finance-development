@@ -198,7 +198,7 @@ export default function StatementsPage() {
                           {payingCardId === cs.cardId ? (
                             <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-border/50">
                               <input
-                                type="number"
+                                type="number" inputMode="decimal"
                                 value={payAmount}
                                 onChange={(e) => setPayAmount(e.target.value)}
                                 placeholder={`₹${cs.outstanding}`}

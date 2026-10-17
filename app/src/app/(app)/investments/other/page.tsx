@@ -15,6 +15,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { Landmark, Plus, Pencil, Trash2, X, CalendarClock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { inputVariants } from "@/components/ui/Input";
 
 const OTHER_TYPES = [
   "FD",
@@ -34,7 +35,7 @@ const OWNED_ELSEWHERE = new Set(["Mutual Fund", "Gold"]);
 const FIXED_INCOME = new Set(["FD", "RD", "PPF", "EPF", "NPS", "Bond"]);
 
 const inputClass =
-  "w-full rounded-xl px-3 py-2 text-sm border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-brand/40";
+  inputVariants();
 
 const emptyForm = {
   name: "",
@@ -253,14 +254,14 @@ export default function OtherInvestmentsPage() {
               />
               <input
                 className={inputClass}
-                type="number"
+                type="number" inputMode="decimal"
                 placeholder={isFixed ? "Principal invested (₹)" : "Buy price (total ₹)"}
                 value={form.principal}
                 onChange={(e) => setForm({ ...form, principal: e.target.value })}
               />
               <input
                 className={inputClass}
-                type="number"
+                type="number" inputMode="decimal"
                 placeholder="Current value (₹)"
                 value={form.current_value}
                 onChange={(e) => setForm({ ...form, current_value: e.target.value })}
@@ -268,7 +269,7 @@ export default function OtherInvestmentsPage() {
               {!isFixed && (
                 <input
                   className={inputClass}
-                  type="number"
+                  type="number" inputMode="decimal"
                   placeholder="Quantity / units"
                   value={form.quantity}
                   onChange={(e) => setForm({ ...form, quantity: e.target.value })}
@@ -278,7 +279,7 @@ export default function OtherInvestmentsPage() {
                 <>
                   <input
                     className={inputClass}
-                    type="number"
+                    type="number" inputMode="decimal"
                     placeholder="Interest rate % p.a."
                     value={form.interest_rate}
                     onChange={(e) => setForm({ ...form, interest_rate: e.target.value })}

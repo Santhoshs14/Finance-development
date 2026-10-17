@@ -1,12 +1,12 @@
 "use client";
 
+import { CHART_COLORS, CHART_TICK, CHART_TOOLTIP_STYLE } from "@/components/charts/theme";
 import { useMemo } from "react";
 import { useData } from "@/providers/DataProvider";
 import { getRecentFinancialMonths } from "@/utils/financialMonth";
 import { detectRecurringTransactions } from "@/utils/calculations";
 import { generateInsightsFromAggregates } from "@/utils/insights";
 import { fmt } from "@/utils/format";
-import { useTheme } from "@/providers/ThemeProvider";
 import ChartCard from "@/components/ChartCard";
 import StatCard from "@/components/StatCard";
 import { BarChart3, Zap, CreditCard, Lightbulb, TrendingDown } from "lucide-react";
@@ -20,12 +20,10 @@ import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
 
 const SKIP_CATS = new Set(["Transfer", "Credit Card Payment", "Income"]);
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const PIE_COLORS = ["#1abf94", "#3b82f6", "#f59e0b", "#8b5cf6", "#ef4444", "#6b7280", "#ec4899"];
+const PIE_COLORS = ["#00C7BE", "#5856D6", "#FF9500", "#AF52DE", "#FF3B30", "#8E8E93", "#FF2D55"];
 
 export default function AnalyticsPage() {
   const { transactions, cycleStartDay, accounts, categories, dataReady } = useData();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
 
   // Build set of investment/productive categories
   const investmentCategories = useMemo(() => {
@@ -209,11 +207,11 @@ export default function AnalyticsPage() {
         <ChartCard title="Spending Velocity" subtitle="Daily cumulative spend this cycle">
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={velocityData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#1f2937" : "#e5e7eb"} />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} />
-              <YAxis tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ background: isDark ? "#1f2937" : "#fff", border: "none", borderRadius: 12 }} formatter={(v) => [fmt(Number(v)), ""]} />
-              <Area type="monotone" dataKey="cumulative" stroke="#1abf94" fill="#1abf94" fillOpacity={0.2} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
+              <XAxis dataKey="date" tick={CHART_TICK} />
+              <YAxis tick={CHART_TICK} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => [fmt(Number(v)), ""]} />
+              <Area type="monotone" dataKey="cumulative" stroke="#00C7BE" fill="#00C7BE" fillOpacity={0.2} />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -240,10 +238,10 @@ export default function AnalyticsPage() {
         <ChartCard title="Day-of-Week Pattern" subtitle="Which days you spend most">
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={dayOfWeekData}>
-              <XAxis dataKey="day" tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} />
-              <YAxis tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ background: isDark ? "#1f2937" : "#fff", border: "none", borderRadius: 12 }} formatter={(v) => [fmt(Number(v)), ""]} />
-              <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <XAxis dataKey="day" tick={CHART_TICK} />
+              <YAxis tick={CHART_TICK} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => [fmt(Number(v)), ""]} />
+              <Bar dataKey="total" fill="#5856D6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -251,7 +249,7 @@ export default function AnalyticsPage() {
 
       {/* Top Merchants */}
       {topMerchants.length > 0 && (
-        <div className="rounded-2xl border border-border p-5 space-y-3" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+        <div className="rounded-2xl border border-border p-5 space-y-3 bg-card">
           <h3 className="text-sm font-bold text-foreground">Top Spending Destinations</h3>
           <div className="space-y-2">
             {topMerchants.map((m, idx) => (
@@ -270,7 +268,7 @@ export default function AnalyticsPage() {
 
       {/* Recurring Patterns */}
       {recurring.length > 0 && (
-        <div className="rounded-2xl border border-border p-5 space-y-3" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+        <div className="rounded-2xl border border-border p-5 space-y-3 bg-card">
           <h3 className="text-sm font-bold text-foreground">Detected Recurring Expenses</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {recurring.slice(0, 6).map((r) => (
@@ -293,12 +291,12 @@ export default function AnalyticsPage() {
         <ChartCard title="Cycle-over-Cycle" subtitle={`Current vs Previous (${prevCycle.label})`}>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={cycleComparison} layout="vertical" margin={{ left: 60 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#1f2937" : "#e5e7eb"} />
-              <XAxis type="number" tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-              <YAxis type="category" dataKey="category" tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} width={60} />
-              <Tooltip contentStyle={{ background: isDark ? "#1f2937" : "#fff", border: "none", borderRadius: 12 }} formatter={(v) => fmt(Number(v))} />
-              <Bar dataKey="current" fill="#0080ff" radius={[0, 4, 4, 0]} name="Current" />
-              <Bar dataKey="previous" fill="#6b7280" radius={[0, 4, 4, 0]} name="Previous" opacity={0.5} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
+              <XAxis type="number" tick={CHART_TICK} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+              <YAxis type="category" dataKey="category" tick={CHART_TICK} width={60} />
+              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => fmt(Number(v))} />
+              <Bar dataKey="current" fill="#007AFF" radius={[0, 4, 4, 0]} name="Current" />
+              <Bar dataKey="previous" fill="#8E8E93" radius={[0, 4, 4, 0]} name="Previous" opacity={0.5} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -306,7 +304,7 @@ export default function AnalyticsPage() {
 
       {/* Insights */}
       {insights.length > 0 && (
-        <div className="rounded-2xl border border-border p-5 space-y-3" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+        <div className="rounded-2xl border border-border p-5 space-y-3 bg-card">
           <div className="flex items-center gap-2 mb-2">
             <Lightbulb className="w-4 h-4 text-brand" />
             <h3 className="text-sm font-bold text-foreground">Insights</h3>

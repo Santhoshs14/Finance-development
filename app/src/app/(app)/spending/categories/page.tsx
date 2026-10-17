@@ -1,10 +1,10 @@
 "use client";
 
+import { CHART_TICK, CHART_TOOLTIP_STYLE } from "@/components/charts/theme";
 import { useState, useMemo } from "react";
 import { useData } from "@/providers/DataProvider";
 import { getRecentFinancialMonths } from "@/utils/financialMonth";
 import { fmt } from "@/utils/format";
-import { useTheme } from "@/providers/ThemeProvider";
 import { Tags, TrendingUp, TrendingDown, ChevronRight, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,8 +13,6 @@ const SKIP_CATS = new Set(["Transfer", "Credit Card Payment", "Income"]);
 
 export default function CategoriesPage() {
   const { transactions, cycleStartDay } = useData();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -106,7 +104,7 @@ export default function CategoriesPage() {
       {(topGrowing.length > 0 || topImproved.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {topGrowing.length > 0 && (
-            <div className="rounded-2xl border border-border p-4" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+            <div className="rounded-2xl border border-border p-4 bg-card">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp className="w-4 h-4 text-red-500" />
                 <h3 className="text-sm font-bold text-foreground">Spending Up</h3>
@@ -120,7 +118,7 @@ export default function CategoriesPage() {
             </div>
           )}
           {topImproved.length > 0 && (
-            <div className="rounded-2xl border border-border p-4" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+            <div className="rounded-2xl border border-border p-4 bg-card">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingDown className="w-4 h-4 text-emerald-500" />
                 <h3 className="text-sm font-bold text-foreground">Spending Down</h3>
@@ -137,7 +135,7 @@ export default function CategoriesPage() {
       )}
 
       {/* Category List */}
-      <div className="rounded-2xl border border-border overflow-hidden" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+      <div className="rounded-2xl border border-border overflow-hidden bg-card">
         <div className="px-5 py-3 border-b border-border">
           <h3 className="text-sm font-bold text-foreground">Categories — {currentCycle.label}</h3>
         </div>
@@ -197,9 +195,9 @@ export default function CategoriesPage() {
                             <p className="text-xs font-medium text-muted-foreground mb-2">6-Cycle Trend</p>
                             <ResponsiveContainer width="100%" height={100}>
                               <BarChart data={trendData}>
-                                <XAxis dataKey="label" tick={{ fontSize: 10, fill: isDark ? "#9ca3af" : "#6b7280" }} />
-                                <Tooltip contentStyle={{ background: isDark ? "#1f2937" : "#fff", border: "none", borderRadius: 8 }} formatter={(v) => [fmt(Number(v)), ""]} />
-                                <Bar dataKey="amount" fill="#1abf94" radius={[3, 3, 0, 0]} />
+                                <XAxis dataKey="label" tick={{ ...CHART_TICK, fontSize: 10 }} />
+                                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => [fmt(Number(v)), ""]} />
+                                <Bar dataKey="amount" fill="#00C7BE" radius={[3, 3, 0, 0]} />
                               </BarChart>
                             </ResponsiveContainer>
                           </div>

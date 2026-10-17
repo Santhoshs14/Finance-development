@@ -8,23 +8,22 @@ import StatCard from "@/components/StatCard";
 import ChartCard from "@/components/ChartCard";
 import EmptyState from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { useTheme } from "@/providers/ThemeProvider";
+import { CHART_TOOLTIP_STYLE } from "@/components/charts/theme";
 import { Gem, Plus, Pencil, Trash2, Calculator, ChevronDown, ChevronUp } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
+import { inputVariants } from "@/components/ui/Input";
 
 const FORM_COLORS: Record<string, string> = {
-  digital: "#3b82f6",
-  physical: "#f59e0b",
-  sgb: "#8b5cf6",
-  etf: "#10b981",
+  digital: "#007AFF",
+  physical: "#FF9500",
+  sgb: "#AF52DE",
+  etf: "#34C759",
 };
 
 export default function GoldPage() {
   const { investments, isLoading } = useInvestments();
   const { addInvestment, updateInvestment, deleteInvestment } = useInvestmentMutations();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -176,14 +175,13 @@ export default function GoldPage() {
           calc={calc}
           setCalc={setCalc}
           calcResult={calcResult}
-          isDark={isDark}
         />
       </div>
     );
   }
 
-  const inputClass = `w-full rounded-xl px-3 py-2 text-sm border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-brand/40`;
-  const selectClass = `w-full rounded-xl px-3 py-2 text-sm border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-brand/40`;
+  const inputClass = inputVariants();
+  const selectClass = inputVariants();
 
   return (
     <div className="space-y-6">
@@ -209,10 +207,10 @@ export default function GoldPage() {
             <PieChart>
               <Pie data={formBreakdown} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name }) => name}>
                 {formBreakdown.map((entry) => (
-                  <Cell key={entry.key} fill={FORM_COLORS[entry.key] || "#6b7280"} />
+                  <Cell key={entry.key} fill={FORM_COLORS[entry.key] || "#8E8E93"} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v) => `₹${Number(v).toLocaleString("en-IN")}`} />
+              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => `₹${Number(v).toLocaleString("en-IN")}`} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -260,12 +258,12 @@ export default function GoldPage() {
                   </label>
                 ))}
               </div>
-              <input className={inputClass} type="number" placeholder="Weight (grams)" value={form.weight_grams} onChange={(e) => setForm({ ...form, weight_grams: e.target.value })} />
-              <input className={inputClass} type="number" placeholder="Buy Price / gram" value={form.buy_price} onChange={(e) => setForm({ ...form, buy_price: e.target.value })} />
-              <input className={inputClass} type="number" placeholder="Current Price / gram" value={form.current_price} onChange={(e) => setForm({ ...form, current_price: e.target.value })} />
+              <input className={inputClass} type="number" inputMode="decimal" placeholder="Weight (grams)" value={form.weight_grams} onChange={(e) => setForm({ ...form, weight_grams: e.target.value })} />
+              <input className={inputClass} type="number" inputMode="decimal" placeholder="Buy Price / gram" value={form.buy_price} onChange={(e) => setForm({ ...form, buy_price: e.target.value })} />
+              <input className={inputClass} type="number" inputMode="decimal" placeholder="Current Price / gram" value={form.current_price} onChange={(e) => setForm({ ...form, current_price: e.target.value })} />
               <input className={inputClass} type="date" value={form.purchase_date} onChange={(e) => setForm({ ...form, purchase_date: e.target.value })} />
               {form.form === "physical" && (
-                <input className={inputClass} type="number" placeholder="Making Charges (₹)" value={form.making_charges} onChange={(e) => setForm({ ...form, making_charges: e.target.value })} />
+                <input className={inputClass} type="number" inputMode="decimal" placeholder="Making Charges (₹)" value={form.making_charges} onChange={(e) => setForm({ ...form, making_charges: e.target.value })} />
               )}
             </div>
             <div className="flex gap-2">
@@ -294,8 +292,7 @@ export default function GoldPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className="rounded-2xl border border-border p-4 space-y-3"
-              style={{ background: isDark ? "#111827" : "#ffffff" }}
+              className="rounded-2xl border border-border p-4 space-y-3 bg-card"
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -303,20 +300,20 @@ export default function GoldPage() {
                   <div className="flex gap-2 mt-1">
                     <span
                       className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium text-white"
-                      style={{ background: FORM_COLORS[g.form || "physical"] || "#6b7280" }}
+                      style={{ background: FORM_COLORS[g.form || "physical"] || "#8E8E93" }}
                     >
                       {formInfo.label}
                     </span>
-                    <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-warning/12 text-warning">
                       {purityLabel}
                     </span>
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => handleEdit(g)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                  <button onClick={() => handleEdit(g)} aria-label={`Edit ${g.name}`} className="grid size-9 place-items-center rounded-full hover:bg-muted transition-colors">
                     <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
-                  <button onClick={() => setDeleteId(g.id)} className="p-1.5 rounded-lg hover:bg-danger/10 transition-colors">
+                  <button onClick={() => setDeleteId(g.id)} aria-label={`Delete ${g.name}`} className="grid size-9 place-items-center rounded-full hover:bg-danger/10 transition-colors">
                     <Trash2 className="w-3.5 h-3.5 text-danger" />
                   </button>
                 </div>
@@ -348,7 +345,7 @@ export default function GoldPage() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">P/L</p>
-                  <p className={`font-semibold ${returns.profitLoss >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                  <p className={`font-semibold tabular-nums ${returns.profitLoss >= 0 ? "text-success" : "text-danger"}`}>
                     {returns.profitLoss >= 0 ? "+" : ""}{fmt(returns.profitLoss)}
                     <span className="ml-1 text-[10px]">({returns.plPercentage}%)</span>
                   </p>
@@ -375,7 +372,6 @@ export default function GoldPage() {
         calc={calc}
         setCalc={setCalc}
         calcResult={calcResult}
-        isDark={isDark}
       />
 
       <ConfirmDialog
@@ -404,21 +400,18 @@ function GoldCalculatorSection({
   calc,
   setCalc,
   calcResult,
-  isDark,
 }: {
   showCalculator: boolean;
   setShowCalculator: (v: boolean) => void;
   calc: { weight: string; purity: number; rate24k: string; makingCharges: string };
   setCalc: (v: typeof calc) => void;
   calcResult: { value: number; equivalent24k: number; totalCost: number; making: number } | null;
-  isDark: boolean;
 }) {
-  const inputClass = `w-full rounded-xl px-3 py-2 text-sm border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-brand/40`;
+  const inputClass = inputVariants();
 
   return (
     <div
-      className="rounded-2xl border border-border overflow-hidden"
-      style={{ background: isDark ? "#111827" : "#ffffff" }}
+      className="rounded-2xl border border-border overflow-hidden bg-card"
     >
       <button
         onClick={() => setShowCalculator(!showCalculator)}
@@ -446,7 +439,7 @@ function GoldCalculatorSection({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <input
                   className={inputClass}
-                  type="number"
+                  type="number" inputMode="decimal"
                   placeholder="Weight (grams)"
                   value={calc.weight}
                   onChange={(e) => setCalc({ ...calc, weight: e.target.value })}
@@ -468,14 +461,14 @@ function GoldCalculatorSection({
                 </div>
                 <input
                   className={inputClass}
-                  type="number"
+                  type="number" inputMode="decimal"
                   placeholder="24K Rate (₹/gram)"
                   value={calc.rate24k}
                   onChange={(e) => setCalc({ ...calc, rate24k: e.target.value })}
                 />
                 <input
                   className={inputClass}
-                  type="number"
+                  type="number" inputMode="decimal"
                   placeholder="Making Charges (₹)"
                   value={calc.makingCharges}
                   onChange={(e) => setCalc({ ...calc, makingCharges: e.target.value })}

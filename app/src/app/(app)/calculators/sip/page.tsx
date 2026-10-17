@@ -147,8 +147,8 @@ export default function SipCalculatorPage() {
           data={result.schedule}
           xKey="year"
           series={[
-            { key: "invested", name: "Invested", color: "#0080ff" },
-            { key: "returns", name: "Returns", color: "#10b981" },
+            { key: "invested", name: "Invested", color: "#007AFF" },
+            { key: "returns", name: "Returns", color: "#34C759" },
           ]}
         />
 

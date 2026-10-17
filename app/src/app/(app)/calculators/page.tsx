@@ -24,7 +24,7 @@ export default function CalculatorsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Calculators</h1>
+          <h1 className="text-large-title font-bold text-foreground md:text-2xl">Calculators</h1>
           <p className="text-sm text-muted-foreground">
             {CALCULATORS.length} planning tools for investments, loans, tax and retirement
           </p>

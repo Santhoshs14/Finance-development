@@ -150,8 +150,8 @@ export default function HraCalculatorPage() {
             title="Annual HRA Split"
             subtitle="Exempt vs taxable portion of the HRA you receive"
             slices={[
-              { name: "Exempt", value: result.exempt, color: "#10b981" },
-              { name: "Taxable", value: result.taxableHra, color: "#ef4444" },
+              { name: "Exempt", value: result.exempt, color: "#34C759" },
+              { name: "Taxable", value: result.taxableHra, color: "#FF3B30" },
             ]}
           />
         </ResultPanel>

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { inputVariants } from "@/components/ui/Input";
 
 interface FundResult {
   scheme_code: string;
@@ -34,7 +35,7 @@ interface FundResult {
 }
 
 const inputClass =
-  "w-full rounded-xl px-3 py-2 text-sm border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-brand/40";
+  inputVariants();
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -390,14 +391,14 @@ export default function MutualFundsPage() {
               />
               <input
                 className={inputClass}
-                type="number"
+                type="number" inputMode="decimal"
                 placeholder="Buy NAV (per unit)"
                 value={form.buy_price}
                 onChange={(e) => setForm({ ...form, buy_price: e.target.value })}
               />
               <input
                 className={inputClass}
-                type="number"
+                type="number" inputMode="decimal"
                 placeholder="Current NAV"
                 value={form.current_price}
                 onChange={(e) => setForm({ ...form, current_price: e.target.value })}
@@ -405,7 +406,7 @@ export default function MutualFundsPage() {
               {!editingId && (
                 <input
                   className={inputClass}
-                  type="number"
+                  type="number" inputMode="decimal"
                   placeholder="Amount invested (₹) — optional"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -413,7 +414,7 @@ export default function MutualFundsPage() {
               )}
               <input
                 className={inputClass}
-                type="number"
+                type="number" inputMode="decimal"
                 placeholder="Units"
                 value={form.quantity}
                 onChange={(e) => setForm({ ...form, quantity: e.target.value })}
@@ -547,14 +548,14 @@ export default function MutualFundsPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         className={inputClass}
-                        type="number"
+                        type="number" inputMode="decimal"
                         placeholder="Units to add"
                         value={topUp.units}
                         onChange={(e) => setTopUp({ ...topUp, units: e.target.value })}
                       />
                       <input
                         className={inputClass}
-                        type="number"
+                        type="number" inputMode="decimal"
                         placeholder="Price / NAV"
                         value={topUp.price}
                         onChange={(e) => setTopUp({ ...topUp, price: e.target.value })}
@@ -580,7 +581,7 @@ export default function MutualFundsPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         className={inputClass}
-                        type="number"
+                        type="number" inputMode="decimal"
                         placeholder="Amount / installment"
                         value={sipForm.amount}
                         onChange={(e) => setSipForm({ ...sipForm, amount: e.target.value })}

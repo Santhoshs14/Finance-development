@@ -184,7 +184,7 @@ export default function LendingPage() {
         </div>
         <div className="relative flex-1 min-w-[160px]">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search by name..." className="pl-9 h-8 text-sm" />
+          <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search by name..." className="pl-9 md:h-8" />
         </div>
         <div className="flex items-center gap-1">
           <span className="text-[10px] text-muted-foreground">Sort:</span>
@@ -253,7 +253,7 @@ export default function LendingPage() {
                     <div className="flex gap-2 items-center">
                       {repayId === r.id ? (
                         <form onSubmit={(e) => { e.preventDefault(); repayMutation.mutate({ id: r.id, amount: parseFloat(repayAmount) }); }} className="flex gap-1.5 items-center">
-                          <Input type="number" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} placeholder="₹" className="w-20 h-7 text-xs" required />
+                          <Input type="number" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} placeholder="₹" className="h-9 w-24 text-xs md:h-7 md:w-20" required />
                           <Button type="submit" size="sm" className="h-7 px-2 text-[11px]">Record</Button>
                           <button type="button" onClick={() => setRepayId(null)} className="p-1 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
                         </form>

@@ -8,7 +8,8 @@ import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { splitsAPI } from "@/services/api";
 import { fmt } from "@/utils/format";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, Button, Badge, Input } from "@/components/ui";
+import { Card, CardContent, Button, Badge, Input, Sheet } from "@/components/ui";
+import { inputVariants } from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
 import { Plus, Receipt, CheckCircle2, X, Users, ArrowRight, Trash2 } from "lucide-react";
@@ -174,7 +175,7 @@ export default function SplitsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Split Expenses</h1>
+        <h1 className="text-title1 font-bold md:text-xl">Split Expenses</h1>
         <Button onClick={() => setShowAdd(true)} className="gap-1.5">
           <Plus className="h-4 w-4" /> New Split
         </Button>
@@ -302,15 +303,8 @@ export default function SplitsPage() {
         </div>
       )}
 
-      {/* Add Split Modal */}
-      {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-foreground">New Split</h3>
-                <button onClick={() => setShowAdd(false)}><X className="h-4 w-4 text-muted-foreground" /></button>
-              </div>
+      {/* Add Split Sheet */}
+      <Sheet open={showAdd} onOpenChange={setShowAdd} title="New Split">
               <form onSubmit={handleCreate} className="space-y-3">
                 <Input
                   placeholder="Description (e.g., Dinner at XYZ)"
@@ -339,7 +333,7 @@ export default function SplitsPage() {
                   <select
                     value={form.paid_by}
                     onChange={(e) => setForm({ ...form, paid_by: e.target.value })}
-                    className="w-full mt-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                    className={cn(inputVariants(), "mt-1")}
                   >
                     {form.participants.map((p) => (
                       <option key={p.name} value={p.name}>{p.name}</option>
@@ -371,7 +365,7 @@ export default function SplitsPage() {
                           step="0.01"
                         />
                         {p.name !== "You" && (
-                          <button type="button" onClick={() => removeParticipant(p.name)}>
+                          <button type="button" onClick={() => removeParticipant(p.name)} aria-label={`Remove ${p.name}`} className="grid size-8 place-items-center rounded-full hover:bg-muted">
                             <X className="h-3.5 w-3.5 text-muted-foreground" />
                           </button>
                         )}
@@ -394,28 +388,23 @@ export default function SplitsPage() {
                   {createMutation.isPending ? "Creating..." : "Create Split"}
                 </Button>
               </form>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      </Sheet>
 
-      {/* Settle Modal */}
-      {settleModal.open && settleModal.split && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <Card className="w-full max-w-sm">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-foreground">Record Settlement</h3>
-                <button onClick={() => setSettleModal({ open: false })}><X className="h-4 w-4 text-muted-foreground" /></button>
-              </div>
-              <p className="text-xs text-muted-foreground">{settleModal.split.description}</p>
+      {/* Settle Sheet */}
+      <Sheet
+        open={settleModal.open && !!settleModal.split}
+        onOpenChange={(open) => { if (!open) setSettleModal({ open: false }); }}
+        title="Record Settlement"
+        description={settleModal.split?.description}
+      >
+        {settleModal.split && (
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Who paid?</label>
                   <select
                     value={settleForm.from}
                     onChange={(e) => setSettleForm({ ...settleForm, from: e.target.value })}
-                    className="w-full mt-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                    className={cn(inputVariants(), "mt-1")}
                   >
                     <option value="">Select person</option>
                     {settleModal.split.participants
@@ -452,10 +441,8 @@ export default function SplitsPage() {
                   {settleMutation.isPending ? "Recording..." : "Record Payment"}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        )}
+      </Sheet>
 
       {/* Delete Confirm */}
       <ConfirmDialog

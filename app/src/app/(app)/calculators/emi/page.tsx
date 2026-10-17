@@ -126,8 +126,8 @@ export default function EmiCalculatorPage() {
           title="Payment Breakup"
           subtitle="How your total repayment splits"
           slices={[
-            { name: "Principal", value: result.principal, color: "#0080ff" },
-            { name: "Interest", value: result.totalInterest, color: "#ef4444" },
+            { name: "Principal", value: result.principal, color: "#007AFF" },
+            { name: "Interest", value: result.totalInterest, color: "#FF3B30" },
           ]}
         />
 

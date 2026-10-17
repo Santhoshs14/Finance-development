@@ -128,8 +128,8 @@ export default function RdCalculatorPage() {
           data={result.schedule}
           xKey="year"
           series={[
-            { key: "invested", name: "Deposited", color: "#0080ff" },
-            { key: "returns", name: "Interest", color: "#10b981" },
+            { key: "invested", name: "Deposited", color: "#007AFF" },
+            { key: "returns", name: "Interest", color: "#34C759" },
           ]}
         />
 

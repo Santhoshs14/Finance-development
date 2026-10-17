@@ -154,8 +154,8 @@ export default function NpsCalculatorPage() {
           title="Corpus Split at Retirement"
           subtitle="Annuity purchase vs lump sum withdrawal"
           slices={[
-            { name: "Annuity", value: result.annuityCorpus, color: "#0080ff" },
-            { name: "Lump Sum", value: result.lumpSumWithdrawal, color: "#10b981" },
+            { name: "Annuity", value: result.annuityCorpus, color: "#007AFF" },
+            { name: "Lump Sum", value: result.lumpSumWithdrawal, color: "#34C759" },
           ]}
         />
 
@@ -165,8 +165,8 @@ export default function NpsCalculatorPage() {
           data={result.schedule}
           xKey="year"
           series={[
-            { key: "invested", name: "Invested", color: "#0080ff" },
-            { key: "returns", name: "Returns", color: "#10b981" },
+            { key: "invested", name: "Invested", color: "#007AFF" },
+            { key: "returns", name: "Returns", color: "#34C759" },
           ]}
         />
 

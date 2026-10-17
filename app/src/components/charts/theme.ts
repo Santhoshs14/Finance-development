@@ -4,6 +4,8 @@
  * across every Recharts visualization.
  */
 
+import type { CSSProperties } from "react";
+
 export interface ChartTheme {
   colors: string[];
   semantic: {
@@ -21,6 +23,28 @@ export interface ChartTheme {
   tooltipBg: string;
   tooltipBorder: string;
 }
+
+/**
+ * Theme-reactive colors as CSS variable references. Recharts passes them to SVG
+ * attributes and inline styles, so light/dark switches apply without re-rendering.
+ */
+export const CHART_COLORS = {
+  grid: "hsl(var(--border))",
+  axis: "hsl(var(--muted-foreground))",
+  track: "hsl(var(--muted))",
+  surface: "hsl(var(--card))",
+  text: "hsl(var(--foreground))",
+} as const;
+
+export const CHART_TOOLTIP_STYLE: CSSProperties = {
+  background: "hsl(var(--popover))",
+  color: "hsl(var(--foreground))",
+  border: "0.5px solid hsl(var(--border))",
+  borderRadius: 12,
+  boxShadow: "var(--elev-3)",
+};
+
+export const CHART_TICK = { fontSize: 11, fill: CHART_COLORS.axis } as const;
 
 /**
  * Helper that runs only on the client and reads the current CSS vars.
@@ -59,28 +83,28 @@ export function getChartTheme(): ChartTheme {
 }
 
 const DEFAULT_LIGHT_THEME: ChartTheme = {
-  colors: ["#0080ff", "#f59e0b", "#10b981", "#a855f7", "#0ea5e9", "#ec4899"],
+  colors: ["#007AFF", "#FF9500", "#34C759", "#AF52DE", "#32ADE6", "#FF2D55"],
   semantic: {
-    brand: "#0080ff",
-    accent: "#f59e0b",
-    success: "#10b981",
-    warning: "#f59e0b",
-    danger: "#ef4444",
-    info: "#0ea5e9",
-    purple: "#a855f7",
+    brand: "#007AFF",
+    accent: "#FF9500",
+    success: "#248A3D",
+    warning: "#C93400",
+    danger: "#E5281C",
+    info: "#0071A4",
+    purple: "#AF52DE",
   },
-  grid: "#e2e8f0",
-  axis: "#64748b",
-  text: "#0f172a",
-  tooltipBg: "#ffffff",
-  tooltipBorder: "#e2e8f0",
+  grid: "#E3E3E8",
+  axis: "#6C6C70",
+  text: "#000000",
+  tooltipBg: "#FFFFFF",
+  tooltipBorder: "#E3E3E8",
 };
 
-/** Color palette used for category breakdowns when no per-category color is set. */
+/** Color palette used for category breakdowns when no per-category color is set (iOS system hues). */
 export const CATEGORY_PALETTE = [
-  "#0080ff", "#f59e0b", "#10b981", "#a855f7", "#0ea5e9", "#ec4899",
-  "#f97316", "#14b8a6", "#84cc16", "#06b6d4", "#eab308", "#8b5cf6",
-  "#ef4444", "#3b82f6", "#22c55e",
+  "#007AFF", "#FF9500", "#34C759", "#AF52DE", "#32ADE6", "#FF2D55",
+  "#5856D6", "#00C7BE", "#FFCC00", "#30B0C7", "#FF3B30", "#A2845E",
+  "#64D2FF", "#BF5AF2", "#30D158",
 ];
 
 /** Deterministic color assignment for a category name. */
@@ -89,5 +113,5 @@ export function colorForCategory(name: string): string {
   for (let i = 0; i < name.length; i++) {
     hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   }
-  return CATEGORY_PALETTE[hash % CATEGORY_PALETTE.length] ?? "#0080ff";
+  return CATEGORY_PALETTE[hash % CATEGORY_PALETTE.length] ?? "#007AFF";
 }

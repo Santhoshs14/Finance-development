@@ -42,7 +42,7 @@ function fireConfetti(milestone: number) {
     particleCount: Math.round(80 * intensity),
     spread: 60 + intensity * 40,
     origin: { y: 0.6 },
-    colors: ["#0080ff", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444"],
+    colors: ["#007AFF", "#FF9500", "#34C759", "#AF52DE", "#FF3B30"],
   });
 
   if (milestone === 100) {
@@ -53,14 +53,14 @@ function fireConfetti(milestone: number) {
         angle: 60,
         spread: 55,
         origin: { x: 0, y: 0.6 },
-        colors: ["#0080ff", "#f59e0b", "#10b981"],
+        colors: ["#007AFF", "#FF9500", "#34C759"],
       });
       confetti({
         particleCount: 50,
         angle: 120,
         spread: 55,
         origin: { x: 1, y: 0.6 },
-        colors: ["#0080ff", "#f59e0b", "#10b981"],
+        colors: ["#007AFF", "#FF9500", "#34C759"],
       });
     }, 200);
   }

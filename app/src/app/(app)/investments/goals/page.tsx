@@ -13,9 +13,9 @@ import StatCard from "@/components/StatCard";
 import EmptyState from "@/components/EmptyState";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { ProjectionFan, type FanPoint } from "@/components/charts/ProjectionFan";
-import { useTheme } from "@/providers/ThemeProvider";
 import { Target, Plus, Pencil, Trash2, PiggyBank, CheckCircle2, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { inputVariants } from "@/components/ui/Input";
 
 interface Contribution {
   id: string;
@@ -94,8 +94,6 @@ export default function GoalsPage() {
   const { goals, isLoading } = useGoals();
   const { addGoal, updateGoal, deleteGoal } = useGoalMutations();
   const { investments } = useInvestments();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
   const { celebrate } = useCelebration();
   const queryClient = useQueryClient();
 
@@ -214,7 +212,7 @@ export default function GoalsPage() {
     );
   }
 
-  const inputClass = `w-full rounded-xl px-3 py-2 text-sm border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-brand/40`;
+  const inputClass = inputVariants();
 
   return (
     <div className="space-y-6">
@@ -247,8 +245,8 @@ export default function GoalsPage() {
             <h3 className="text-sm font-bold text-foreground">{editingId ? "Edit Goal" : "Create Goal"}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input className={inputClass} placeholder="Goal name (e.g. Emergency Fund)" value={form.goal_name} onChange={(e) => setForm({ ...form, goal_name: e.target.value })} />
-              <input className={inputClass} type="number" placeholder="Target Amount (₹)" value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} />
-              <input className={inputClass} type="number" placeholder="Current Amount (₹)" value={form.current_amount} onChange={(e) => setForm({ ...form, current_amount: e.target.value })} />
+              <input className={inputClass} type="number" inputMode="decimal" placeholder="Target Amount (₹)" value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} />
+              <input className={inputClass} type="number" inputMode="decimal" placeholder="Current Amount (₹)" value={form.current_amount} onChange={(e) => setForm({ ...form, current_amount: e.target.value })} />
               <input className={inputClass} type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
             </div>
             <div className="flex gap-2">
@@ -276,8 +274,7 @@ export default function GoalsPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className="rounded-2xl border border-border p-4 space-y-3"
-              style={{ background: isDark ? "#111827" : "#ffffff" }}
+              className="rounded-2xl border border-border p-4 space-y-3 bg-card"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
@@ -313,7 +310,7 @@ export default function GoalsPage() {
                     className="h-full rounded-full transition-all duration-700"
                     style={{
                       width: `${Math.min(100, c.progress_percentage)}%`,
-                      background: isComplete ? "#10b981" : "#1abf94",
+                      background: isComplete ? "#34C759" : "#00C7BE",
                     }}
                   />
                 </div>
@@ -368,7 +365,7 @@ export default function GoalsPage() {
                 <div className="flex gap-2 pt-1">
                   <input
                     className={inputClass}
-                    type="number"
+                    type="number" inputMode="decimal"
                     placeholder="Amount (₹)"
                     value={addFundsAmount}
                     onChange={(e) => setAddFundsAmount(e.target.value)}

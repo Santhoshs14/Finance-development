@@ -4,7 +4,7 @@ import { WifiOff } from "lucide-react";
 
 export default function OfflinePage() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 bg-background">
+    <div className="flex min-h-dvh items-center justify-center px-4 bg-background">
       <div className="text-center space-y-4 max-w-sm">
         <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
           <WifiOff className="w-8 h-8 text-muted-foreground" />

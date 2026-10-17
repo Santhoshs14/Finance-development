@@ -1,5 +1,6 @@
 "use client";
 
+import { CHART_COLORS } from "@/components/charts/theme";
 import { useMemo } from "react";
 import { useData } from "@/providers/DataProvider";
 import { useInvestments } from "@/hooks/useInvestments";
@@ -13,7 +14,6 @@ import {
 } from "@/utils/calculations";
 import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
 import { getFinancialCycle } from "@/utils/financialMonth";
-import { useTheme } from "@/providers/ThemeProvider";
 import { Heart, ShieldCheck, PiggyBank, CreditCard, Landmark, PieChart as PieIcon, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import ExportBar from "@/components/ExportBar";
@@ -31,8 +31,6 @@ interface Pillar {
 export default function FinancialHealthPage() {
   const { accounts, transactions, categories, cycleStartDay } = useData();
   const { investments } = useInvestments();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
 
   const investmentCategories = useMemo(() => {
     const set = new Set<string>(DEFAULT_INVESTMENT_CATEGORIES);
@@ -77,7 +75,7 @@ export default function FinancialHealthPage() {
     const savingsRate = m.savingsRate;
     const investmentSpend = savingsData.investmentSpend || 0;
     const savingsStatus = savingsRate >= 20 ? "Excellent" : savingsRate >= 10 ? "Fair" : "Needs Work";
-    const savingsColor = savingsRate >= 20 ? "#10b981" : savingsRate >= 10 ? "#f59e0b" : "#ef4444";
+    const savingsColor = savingsRate >= 20 ? "#34C759" : savingsRate >= 10 ? "#FF9500" : "#FF3B30";
     const investNote = investmentSpend > 0 ? ` (includes ₹${investmentSpend.toLocaleString("en-IN")} in investments)` : "";
     const savingsAdvice = savingsRate >= 20
       ? `Saving ${savingsRate.toFixed(0)}% — well above the 20% target${investNote}.`
@@ -89,7 +87,7 @@ export default function FinancialHealthPage() {
     const totalDebt = m.totalDebt;
     const debtScore = ph.debt;
     const debtStatus = debtScore >= 25 ? "Excellent" : debtScore >= 15 ? "Fair" : "Needs Work";
-    const debtColor = debtScore >= 25 ? "#10b981" : debtScore >= 15 ? "#f59e0b" : "#ef4444";
+    const debtColor = debtScore >= 25 ? "#34C759" : debtScore >= 15 ? "#FF9500" : "#FF3B30";
     const highUtilCards = ccMetrics.filter((c) => c.utilization_percentage > 30);
     const debtAdvice = highUtilCards.length > 0
       ? `${highUtilCards.length} card(s) above 30% utilization. Pay down ₹${Math.round(highUtilCards.reduce((s, c) => s + Math.max(0, c.outstanding - c.credit_limit * 0.3), 0)).toLocaleString("en-IN")} to fix.`
@@ -102,7 +100,7 @@ export default function FinancialHealthPage() {
     const emergencyScore = ph.emergency;
     const emergencyMonths = m.emergencyMonths;
     const emergencyStatus = emergencyMonths >= 3 ? "Excellent" : emergencyMonths >= 1 ? "Fair" : "Needs Work";
-    const emergencyColor = emergencyMonths >= 3 ? "#10b981" : emergencyMonths >= 1 ? "#f59e0b" : "#ef4444";
+    const emergencyColor = emergencyMonths >= 3 ? "#34C759" : emergencyMonths >= 1 ? "#FF9500" : "#FF3B30";
     const emergencyAdvice = emergencyMonths >= 6
       ? `${emergencyMonths.toFixed(1)} months of expenses covered. Well cushioned.`
       : emergencyMonths >= 3
@@ -113,7 +111,7 @@ export default function FinancialHealthPage() {
     const diversScore = ph.diversification;
     const assetClasses = m.assetClasses;
     const diversStatus = diversScore >= 15 ? "Excellent" : diversScore >= 8 ? "Fair" : "Needs Work";
-    const diversColor = diversScore >= 15 ? "#10b981" : diversScore >= 8 ? "#f59e0b" : "#ef4444";
+    const diversColor = diversScore >= 15 ? "#34C759" : diversScore >= 8 ? "#FF9500" : "#FF3B30";
     const diversAdvice = assetClasses >= 3
       ? `Spread across ${assetClasses} asset classes. Well diversified.`
       : m.totalAssets > 0
@@ -135,7 +133,7 @@ export default function FinancialHealthPage() {
     <div className="space-y-6">
       {/* Header with export */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Financial Health</h1>
+        <h1 className="text-title1 font-bold md:text-xl">Financial Health</h1>
         <ExportBar elementId="health-report" filename="financial-health" title="Financial Health Score" />
       </div>
 
@@ -144,8 +142,7 @@ export default function FinancialHealthPage() {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="rounded-2xl border border-border p-6 sm:p-8 flex flex-col items-center"
-        style={{ background: isDark ? "#111827" : "#ffffff" }}
+        className="rounded-2xl border border-border p-6 sm:p-8 flex flex-col items-center bg-card"
       >
         <Heart className="w-6 h-6 mb-3" style={{ color: overallColor }} />
         <p className="text-sm text-muted-foreground mb-4">Financial Health Score</p>
@@ -153,7 +150,7 @@ export default function FinancialHealthPage() {
         {/* Score Ring */}
         <div className="relative w-36 h-36 mb-4">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="50" fill="none" stroke={isDark ? "#1f2937" : "#e5e7eb"} strokeWidth="10" />
+            <circle cx="60" cy="60" r="50" fill="none" stroke={CHART_COLORS.track} strokeWidth="10" />
             <circle
               cx="60" cy="60" r="50" fill="none"
               stroke={overallColor}
@@ -185,8 +182,7 @@ export default function FinancialHealthPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
-              className="rounded-2xl border border-border p-5 space-y-3"
-              style={{ background: isDark ? "#111827" : "#ffffff" }}
+              className="rounded-2xl border border-border p-5 space-y-3 bg-card"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -222,7 +218,7 @@ export default function FinancialHealthPage() {
       </div>
 
       {/* Tips */}
-      <div className="rounded-2xl border border-border p-5 space-y-3" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+      <div className="rounded-2xl border border-border p-5 space-y-3 bg-card">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-brand" />
           <h3 className="text-sm font-bold text-foreground">How to Improve</h3>

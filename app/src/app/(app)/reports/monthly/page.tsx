@@ -1,11 +1,11 @@
 "use client";
 
+import { CHART_COLORS, CHART_TICK, CHART_TOOLTIP_STYLE } from "@/components/charts/theme";
 import { useState, useMemo } from "react";
 import { useData } from "@/providers/DataProvider";
 import { getRecentFinancialMonths } from "@/utils/financialMonth";
 import { generateInsightsFromAggregates, generateCycleComparisonInsights } from "@/utils/insights";
 import { fmt } from "@/utils/format";
-import { useTheme } from "@/providers/ThemeProvider";
 import ChartCard from "@/components/ChartCard";
 import StatCard from "@/components/StatCard";
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, Lightbulb, Landmark } from "lucide-react";
@@ -18,8 +18,6 @@ const SKIP_CATS = new Set(["Transfer", "Credit Card Payment"]);
 
 export default function MonthlyReviewPage() {
   const { transactions, cycleStartDay, accounts, categories } = useData();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
 
   // Build set of investment/productive categories
   const investmentCategories = useMemo(() => {
@@ -119,7 +117,7 @@ export default function MonthlyReviewPage() {
     <div className="space-y-6">
       {/* Header with export */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Monthly Review</h1>
+        <h1 className="text-title1 font-bold md:text-xl">Monthly Review</h1>
         <ExportBar elementId="monthly-report" filename={`monthly-${selectedCycle.cycleKey}`} title="Monthly Report" />
       </div>
 
@@ -151,15 +149,14 @@ export default function MonthlyReviewPage() {
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-border p-5 flex items-center gap-6"
-        style={{ background: isDark ? "#111827" : "#ffffff" }}
+        className="rounded-2xl border border-border p-5 flex items-center gap-6 bg-card"
       >
         <div className="relative w-20 h-20 shrink-0">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r="32" fill="none" stroke={isDark ? "#1f2937" : "#e5e7eb"} strokeWidth="8" />
+            <circle cx="40" cy="40" r="32" fill="none" stroke={CHART_COLORS.track} strokeWidth="8" />
             <circle
               cx="40" cy="40" r="32" fill="none"
-              stroke={savingsRate >= 20 ? "#10b981" : savingsRate >= 10 ? "#f59e0b" : "#ef4444"}
+              stroke={savingsRate >= 20 ? "#34C759" : savingsRate >= 10 ? "#FF9500" : "#FF3B30"}
               strokeWidth="8" strokeLinecap="round"
               strokeDasharray={`${(Math.min(100, Math.max(0, savingsRate)) / 100) * 201} 201`}
             />
@@ -188,8 +185,7 @@ export default function MonthlyReviewPage() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-emerald-500/30 p-5 space-y-3"
-          style={{ background: isDark ? "#052e16" : "#ecfdf5" }}
+          className="rounded-2xl border border-emerald-500/30 p-5 space-y-3 bg-success/10"
         >
           <div className="flex items-center gap-2">
             <Landmark className="w-4 h-4 text-emerald-500" />
@@ -214,12 +210,12 @@ export default function MonthlyReviewPage() {
         <ChartCard title="Spending by Category" subtitle={selectedCycle.label}>
           <ResponsiveContainer width="100%" height={Math.max(180, discretionaryData.length * 28)}>
             <BarChart data={discretionaryData.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
-              <XAxis type="number" tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} width={75} />
-              <Tooltip contentStyle={{ background: isDark ? "#1f2937" : "#fff", border: "none", borderRadius: 12 }} formatter={(v) => [fmt(Number(v)), ""]} />
+              <XAxis type="number" tick={CHART_TICK} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+              <YAxis type="category" dataKey="name" tick={CHART_TICK} width={75} />
+              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => [fmt(Number(v)), ""]} />
               <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                 {discretionaryData.slice(0, 10).map((_, idx) => (
-                  <Cell key={idx} fill={idx === 0 ? "#ef4444" : idx < 3 ? "#f59e0b" : "#6b7280"} />
+                  <Cell key={idx} fill={idx === 0 ? "#FF3B30" : idx < 3 ? "#FF9500" : "#8E8E93"} />
                 ))}
               </Bar>
             </BarChart>
@@ -229,7 +225,7 @@ export default function MonthlyReviewPage() {
 
       {/* Top 5 Expenses */}
       {topExpenses.length > 0 && (
-        <div className="rounded-2xl border border-border p-5 space-y-3" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+        <div className="rounded-2xl border border-border p-5 space-y-3 bg-card">
           <h3 className="text-sm font-bold text-foreground">Top 5 Expenses</h3>
           <div className="space-y-2">
             {topExpenses.map((t, idx) => (
@@ -252,7 +248,7 @@ export default function MonthlyReviewPage() {
 
       {/* Insights */}
       {insights.length > 0 && (
-        <div className="rounded-2xl border border-border p-5 space-y-3" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+        <div className="rounded-2xl border border-border p-5 space-y-3 bg-card">
           <div className="flex items-center gap-2 mb-2">
             <Lightbulb className="w-4 h-4 text-brand" />
             <h3 className="text-sm font-bold text-foreground">Cycle Insights</h3>

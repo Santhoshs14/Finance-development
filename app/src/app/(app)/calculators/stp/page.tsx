@@ -146,8 +146,8 @@ export default function StpCalculatorPage() {
           xKey="month"
           xLabelPrefix="Month"
           series={[
-            { key: "source", name: "Source Fund", color: "#64748b" },
-            { key: "target", name: "Target Fund", color: "#10b981" },
+            { key: "source", name: "Source Fund", color: "#8E8E93" },
+            { key: "target", name: "Target Fund", color: "#34C759" },
           ]}
         />
 

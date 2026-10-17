@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui";
 import { AlertTriangle } from "lucide-react";
 
 interface ConfirmDialogProps {
@@ -54,23 +53,47 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   const Icon = CustomIcon || AlertTriangle;
-  const iconBg = confirmColor === "danger" ? "bg-danger/10" : confirmColor === "warning" ? "bg-warning/10" : "bg-brand/10";
+  const iconBg = confirmColor === "danger" ? "bg-danger/12" : confirmColor === "warning" ? "bg-warning/12" : "bg-brand/12";
   const iconColor = confirmColor === "danger" ? "text-danger" : confirmColor === "warning" ? "text-warning" : "text-brand";
-  const btnVariant = confirmColor === "danger" ? "danger" as const : "default" as const;
+  const actionClass = "h-12 cursor-pointer text-[17px] transition-colors active:bg-foreground/[0.08] md:h-11 md:text-[15px] [@media(hover:hover)]:hover:bg-foreground/[0.04]";
 
+  // iOS alert: centered glass card with full-width, hairline-separated actions
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onCancel} role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
-      <div ref={dialogRef} onClick={(e) => e.stopPropagation()} className="w-full max-w-[400px] rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
-        <div className="p-7 text-center">
-          <div className={cn("w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center", iconBg)}>
-            <Icon className={cn("w-6 h-6", iconColor)} />
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/35 p-6"
+      onClick={onCancel}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirm-dialog-title"
+      aria-describedby={message ? "confirm-dialog-message" : undefined}
+    >
+      <div
+        ref={dialogRef}
+        onClick={(e) => e.stopPropagation()}
+        className="glass-sheet w-full max-w-[300px] animate-scale-in overflow-hidden rounded-[22px] text-center md:max-w-[340px]"
+      >
+        <div className="px-5 pb-4 pt-5">
+          <div className={cn("mx-auto mb-3 grid size-11 place-items-center rounded-full", iconBg)}>
+            <Icon className={cn("size-5", iconColor)} />
           </div>
-          <h3 id="confirm-dialog-title" className="text-[17px] font-bold text-foreground mb-2">{title}</h3>
-          {message && <p className="text-sm text-muted-foreground">{message}</p>}
+          <h3 id="confirm-dialog-title" className="text-headline text-foreground">{title}</h3>
+          {message && (
+            <p id="confirm-dialog-message" className="mt-1 text-footnote text-muted-foreground">
+              {message}
+            </p>
+          )}
         </div>
-        <div className="flex gap-3 px-6 pb-6">
-          <Button variant="secondary" onClick={onCancel} className="flex-1">{cancelLabel}</Button>
-          <Button variant={btnVariant} onClick={onConfirm} className="flex-1">{confirmLabel}</Button>
+        <div className="grid grid-cols-2 border-t border-border/70">
+          <button type="button" onClick={onCancel} className={cn(actionClass, "text-brand")}>
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className={cn(actionClass, "border-l border-border/70 font-semibold", confirmColor === "danger" ? "text-danger" : "text-brand")}
+          >
+            {confirmLabel}
+          </button>
         </div>
       </div>
     </div>

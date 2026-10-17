@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useData } from "@/providers/DataProvider";
 import { notificationsAPI } from "@/services/api";
-import { useTheme } from "@/providers/ThemeProvider";
 import EmptyState from "@/components/EmptyState";
 import { Bell, CheckCheck, Trash2, AlertTriangle, Info, TrendingUp, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -18,18 +17,16 @@ const ICON_MAP: Record<string, typeof Bell> = {
 };
 
 const COLOR_MAP: Record<string, string> = {
-  budget_alert: "#f59e0b",
-  danger: "#ef4444",
-  success: "#10b981",
-  info: "#0080ff",
-  investment: "#8b5cf6",
-  credit_card: "#3b82f6",
+  budget_alert: "#FF9500",
+  danger: "#FF3B30",
+  success: "#34C759",
+  info: "#007AFF",
+  investment: "#AF52DE",
+  credit_card: "#5856D6",
 };
 
 export default function NotificationsPage() {
   const { notifications } = useData();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
   const [loading, setLoading] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -132,7 +129,7 @@ export default function NotificationsPage() {
         <AnimatePresence>
           {notifications.map((n, idx) => {
             const Icon = ICON_MAP[n.type] || Bell;
-            const color = COLOR_MAP[n.type] || "#6b7280";
+            const color = COLOR_MAP[n.type] || "#8E8E93";
 
             return (
               <motion.div
@@ -142,12 +139,11 @@ export default function NotificationsPage() {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ delay: idx * 0.03 }}
                 onClick={() => !n.read && handleMarkRead(n.id)}
-                className={`rounded-xl border p-4 cursor-pointer transition-colors ${
+                className={`rounded-2xl border p-4 cursor-pointer transition-colors ${
                   n.read
                     ? "border-border bg-card opacity-60"
                     : "border-brand/20 bg-brand/5 hover:bg-brand/10"
                 }`}
-                style={{ background: !n.read ? (isDark ? "rgba(0,128,255,0.05)" : "rgba(0,128,255,0.03)") : undefined }}
               >
                 <div className="flex items-start gap-3">
                   <div

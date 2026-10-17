@@ -30,7 +30,7 @@ export function SortableWidget({ id, children }: SortableWidgetProps) {
       <button
         {...attributes}
         {...listeners}
-        className="absolute -left-2 top-3 z-10 p-1 rounded-md bg-card border border-border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+        className="absolute -left-2 top-2 z-10 grid size-7 touch-none place-items-center rounded-full border border-border/60 bg-card shadow-elev-2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden cursor-grab active:cursor-grabbing"
         aria-label="Drag to reorder"
       >
         <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />

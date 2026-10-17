@@ -174,7 +174,7 @@ export default function CagrCalculatorPage() {
               data={cagrResult.schedule}
               xKey="year"
               stacked={false}
-              series={[{ key: "value", name: "Value", color: "#0080ff" }]}
+              series={[{ key: "value", name: "Value", color: "#007AFF" }]}
             />
           </ResultPanel>
         </>

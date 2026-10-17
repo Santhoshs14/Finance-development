@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { useData } from "@/providers/DataProvider";
 import { fmt } from "@/utils/format";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle, Input, Badge, Progress } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, Input, Badge, Progress, Button, Sheet } from "@/components/ui";
+import { inputVariants } from "@/components/ui/Input";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip,
 } from "recharts";
@@ -148,14 +149,14 @@ export default function DebtStrategyPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Debt Payoff Strategy</h1>
+          <h1 className="text-title1 font-bold text-foreground md:text-2xl">Debt Payoff Strategy</h1>
           <p className="text-sm text-muted-foreground">Compare Avalanche vs Snowball methods</p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors"
+          className="flex shrink-0 items-center gap-2 px-4 py-2 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand/90 transition-colors"
         >
           + Add Debt
         </button>
@@ -182,7 +183,7 @@ export default function DebtStrategyPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold text-foreground">{fmt(d.balance)}</span>
-                    <button onClick={() => removeDebt(d.id)} className="text-muted-foreground hover:text-danger text-xs">×</button>
+                    <button onClick={() => removeDebt(d.id)} aria-label={`Remove ${d.name}`} className="grid size-8 place-items-center rounded-full text-base text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger">×</button>
                   </div>
                 </div>
               ))}
@@ -338,14 +339,14 @@ export default function DebtStrategyPage() {
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} className="fill-muted-foreground" label={{ value: "Months", position: "bottom", fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
                     <RTooltip formatter={(value) => fmt(value as number)} />
-                    <Bar dataKey="avalanche" name="Avalanche" fill="#0080ff" radius={[2, 2, 0, 0]} />
-                    <Bar dataKey="snowball" name="Snowball" fill="#64748b" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="avalanche" name="Avalanche" fill="#007AFF" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="snowball" name="Snowball" fill="#8E8E93" radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               <div className="flex items-center justify-center gap-6 mt-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-brand" /> Avalanche</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#64748b]" /> Snowball</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-[#8E8E93]" /> Snowball</span>
               </div>
             </CardContent>
           </Card>
@@ -395,11 +396,18 @@ export default function DebtStrategyPage() {
         </Card>
       )}
 
-      {/* Add Debt Modal */}
-      {showAdd && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAdd(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md mx-4 rounded-2xl bg-card border border-border shadow-2xl p-6">
-            <h3 className="text-lg font-bold text-foreground mb-4">Add Debt</h3>
+      {/* Add Debt Sheet */}
+      <Sheet
+        open={showAdd}
+        onOpenChange={setShowAdd}
+        title="Add Debt"
+        footer={
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">Cancel</Button>
+            <Button onClick={addDebt} className="flex-1">Add</Button>
+          </div>
+        }
+      >
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Name</label>
@@ -422,21 +430,15 @@ export default function DebtStrategyPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
-                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full h-9 px-3 rounded-lg border border-input bg-card text-sm text-foreground">
+                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className={inputVariants()}>
                     <option value="credit_card">Credit Card</option>
                     <option value="loan">Loan</option>
                     <option value="emi">EMI</option>
                   </select>
                 </div>
               </div>
-              <div className="flex gap-3">
-                <button onClick={() => setShowAdd(false)} className="flex-1 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted">Cancel</button>
-                <button onClick={addDebt} className="flex-1 py-2 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand/90">Add</button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Sheet>
     </div>
   );
 }

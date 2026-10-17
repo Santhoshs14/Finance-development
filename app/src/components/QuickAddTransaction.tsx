@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Input } from "@/components/ui";
-import { X, Sparkles, Landmark, Plus } from "lucide-react";
+import { Button, Input, Sheet } from "@/components/ui";
+import { inputVariants } from "@/components/ui/Input";
+import { Sparkles, Landmark, Plus } from "lucide-react";
 import toast from "react-hot-toast";
+import { cn } from "@/lib/utils";
 import { DEFAULT_INVESTMENT_CATEGORIES } from "@/schemas/category";
 import { investmentsAPI } from "@/services/api";
 import { suggestCategory as suggestCategoryEngine, type CategoryRule } from "@/utils/categorization";
@@ -175,8 +177,6 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
     }
   };
 
-  if (!isOpen) return null;
-
   const isEdit = !!initialData;
   const isTransfer = form.payment_type === "Self Transfer";
   const bankAccounts = accounts.filter((a) => a.credit_limit == null && !creditCards.some((c) => c.id === a.id));
@@ -187,53 +187,70 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
   const selectedCategory = categories.find((c) => c.name === form.category);
   const isInvestmentCategory = DEFAULT_INVESTMENT_CATEGORIES.has(form.category) || selectedCategory?.classification === "investment";
 
-  const selectClass = "w-full h-9 px-3 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 [&>option]:bg-card [&>option]:text-foreground";
+  const selectClass = cn(inputVariants(), "[&>option]:bg-card [&>option]:text-foreground");
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md mx-4 rounded-2xl bg-card border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="text-lg font-bold text-foreground">{isEdit ? "Edit Transaction" : "Quick Add Transaction"}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"><X className="w-5 h-5" /></button>
+    <Sheet
+      open={isOpen}
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      title={isEdit ? "Edit Transaction" : "Add Transaction"}
+      footer={
+        <div className="flex gap-3">
+          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button type="submit" form="quick-add-transaction" className="flex-1" disabled={submitting}>
+            {submitting ? "Saving..." : isEdit ? "Save Changes" : creatingNewInvestment ? "Add & Create Investment" : "Add Transaction"}
+          </Button>
         </div>
+      }
+    >
+        <form id="quick-add-transaction" onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex items-center justify-center gap-1 rounded-2xl bg-muted/60 px-4 py-3 focus-within:ring-2 focus-within:ring-brand/40">
+            <label htmlFor="quick-add-amount" className="sr-only">Amount (₹)</label>
+            <span aria-hidden className="font-rounded text-title2 text-muted-foreground">₹</span>
+            <input
+              id="quick-add-amount"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0.01"
+              required
+              placeholder="0"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              className="w-full min-w-0 bg-transparent text-center font-rounded text-[34px] font-semibold tabular-nums text-foreground outline-none placeholder:text-muted-foreground/50 focus-visible:shadow-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+          </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[13px] font-medium text-muted-foreground mb-1">Date</label>
               <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} max={getLocalISODate()} required />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-muted-foreground mb-1">Amount (₹)</label>
-              <Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" min="0.01" required />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
               <label className="block text-[13px] font-medium text-muted-foreground mb-1">Category</label>
               {isTransfer ? (
-                <div className="h-9 px-3 rounded-lg bg-muted text-muted-foreground text-sm flex items-center">Transfer</div>
+                <div className="h-11 px-3 rounded-[14px] bg-muted text-muted-foreground text-sm flex items-center md:h-9 md:rounded-[10px]">Transfer</div>
               ) : (
                 <select value={form.category} onChange={(e) => { setForm({ ...form, category: e.target.value }); setSuggestion(null); }} className={selectClass}>
                   {categories.length > 0 ? categories.map((c) => <option key={c.id || c.name} value={c.name}>{c.name}</option>) : ["Food", "Income", "Other"].map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               )}
             </div>
-            <div>
-              <label className="block text-[13px] font-medium text-muted-foreground mb-1">Payment Method</label>
-              {creditCardOnly ? (
-                <div className="h-9 px-3 rounded-lg bg-muted text-muted-foreground text-sm flex items-center gap-1.5">💳 Credit Card</div>
-              ) : (
-                <select value={form.payment_type} onChange={(e) => handlePaymentTypeChange(e.target.value)} className={selectClass}>
-                  <option value="Cash">💵 Cash</option>
-                  {allowCreditCard && <option value="Credit Card">💳 Credit Card</option>}
-                  <option value="Debit Card">🏦 Debit Card</option>
-                  <option value="UPI">📱 UPI</option>
-                  <option value="Self Transfer">🔄 Self Transfer</option>
-                </select>
-              )}
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-[13px] font-medium text-muted-foreground mb-1">Payment Method</label>
+            {creditCardOnly ? (
+              <div className="h-11 px-3 rounded-[14px] bg-muted text-muted-foreground text-sm flex items-center gap-1.5 md:h-9 md:rounded-[10px]">💳 Credit Card</div>
+            ) : (
+              <select value={form.payment_type} onChange={(e) => handlePaymentTypeChange(e.target.value)} className={selectClass}>
+                <option value="Cash">💵 Cash</option>
+                {allowCreditCard && <option value="Credit Card">💳 Credit Card</option>}
+                <option value="Debit Card">🏦 Debit Card</option>
+                <option value="UPI">📱 UPI</option>
+                <option value="Self Transfer">🔄 Self Transfer</option>
+              </select>
+            )}
           </div>
 
           {showCreditCardSelector && (
@@ -293,18 +310,18 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
 
           {/* Investment Linking — shown when category is productive/investment */}
           {isInvestmentCategory && (
-            <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20">
+            <div className="p-4 rounded-2xl border border-success/30 bg-success/[0.08]">
               <div className="flex items-center gap-2 mb-2">
-                <Landmark className="w-4 h-4 text-emerald-500" />
-                <span className="text-[13px] font-medium text-emerald-700 dark:text-emerald-400">Productive Spending</span>
+                <Landmark className="w-4 h-4 text-success" />
+                <span className="text-[13px] font-medium text-success">Productive Spending</span>
               </div>
-              <p className="text-[11px] text-emerald-600/70 dark:text-emerald-400/70 mb-3">
+              <p className="text-[11px] text-success/80 mb-3">
                 This counts toward your savings rate. Link or create an investment to track it in your portfolio.
               </p>
 
               {!creatingNewInvestment ? (
                 <>
-                  <label className="block text-[12px] font-medium text-emerald-700 dark:text-emerald-400 mb-1">Link to Investment</label>
+                  <label className="block text-[12px] font-medium text-success mb-1">Link to Investment</label>
                   <select
                     value={form.linked_investment_id}
                     onChange={(e) => setForm({ ...form, linked_investment_id: e.target.value })}
@@ -320,7 +337,7 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
                   <button
                     type="button"
                     onClick={() => { setCreatingNewInvestment(true); setForm({ ...form, linked_investment_id: "" }); }}
-                    className="mt-2 flex items-center gap-1.5 text-[12px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+                    className="mt-2 flex items-center gap-1.5 text-[12px] font-medium text-success transition-opacity hover:opacity-80"
                   >
                     <Plus className="w-3.5 h-3.5" /> Create new investment & link
                   </button>
@@ -328,7 +345,7 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
               ) : (
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-[12px] font-medium text-emerald-700 dark:text-emerald-400">New Investment Details</label>
+                    <label className="text-[12px] font-medium text-success">New Investment Details</label>
                     <button
                       type="button"
                       onClick={() => setCreatingNewInvestment(false)}
@@ -342,16 +359,16 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
                     placeholder="Name (e.g. Nifty 50 SIP, HDFC Equity)"
                     value={newInvForm.name}
                     onChange={(e) => setNewInvForm({ ...newInvForm, name: e.target.value })}
-                    className="w-full h-9 px-3 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-emerald-950/30 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                    className={cn(inputVariants(), "border-success/40 bg-card")}
                   />
                   <select
                     value={newInvForm.investment_type}
                     onChange={(e) => setNewInvForm({ ...newInvForm, investment_type: e.target.value })}
-                    className="w-full h-9 px-3 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-emerald-950/30 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                    className={cn(selectClass, "border-success/40 bg-card")}
                   >
                     {INVESTMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
-                  <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/50">
+                  <p className="text-[10px] text-success/70">
                     Amount (₹{form.amount || "0"}) will be recorded. Enter NAV & units later in Portfolio.
                   </p>
                 </div>
@@ -360,9 +377,9 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
           )}
 
           {!isEdit && (
-            <div className="p-4 rounded-xl border border-border bg-muted/30">
+            <div className="p-4 rounded-2xl bg-muted/50">
               <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={form.is_recurring} onChange={(e) => setForm({ ...form, is_recurring: e.target.checked })} className="w-4 h-4 rounded accent-brand" />
+                <input type="checkbox" checked={form.is_recurring} onChange={(e) => setForm({ ...form, is_recurring: e.target.checked })} className="w-5 h-5 rounded accent-brand" />
                 <span className="text-sm font-medium text-foreground">Recurring transaction</span>
               </label>
               {form.is_recurring && (
@@ -377,15 +394,7 @@ export default function QuickAddTransaction({ isOpen, onClose, onSubmit, account
               )}
             </div>
           )}
-
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">Cancel</Button>
-            <Button type="submit" className="flex-1" disabled={submitting}>
-              {submitting ? "Saving..." : isEdit ? "Save Changes" : creatingNewInvestment ? "Add & Create Investment" : "Add Transaction"}
-            </Button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Sheet>
   );
 }

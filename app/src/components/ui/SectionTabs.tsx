@@ -1,7 +1,11 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { LIQUID_SPRING } from "@/lib/motion";
 
 export interface SectionTab {
   label: string;
@@ -14,29 +18,53 @@ interface SectionTabsProps {
   className?: string;
 }
 
+/** iOS-style scope bar: scrolling capsule chips with a sliding selection. */
 export function SectionTabs({ tabs, className }: SectionTabsProps) {
   const pathname = usePathname();
-  const router = useRouter();
+  const reduceMotion = useReducedMotion();
+  const scrollerRef = useRef<HTMLElement>(null);
+  const activeRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const active = activeRef.current;
+    if (!scroller || !active) return;
+    // Keep the selected chip in view when the strip overflows on phones
+    scroller.scrollLeft = active.offsetLeft - (scroller.clientWidth - active.offsetWidth) / 2;
+  }, [pathname]);
 
   return (
-    <div className={cn("border-b border-border", className)}>
-      <nav className="flex gap-1 overflow-x-auto pb-px scrollbar-none">
+    <div className={cn("-mx-4 sm:mx-0", className)}>
+      <nav
+        ref={scrollerRef}
+        aria-label="Section"
+        className="scrollbar-none flex gap-1.5 overflow-x-auto px-4 py-0.5 sm:px-0"
+      >
         {tabs.map((tab) => {
           const isActive = pathname === tab.path;
           return (
-            <button
+            <Link
               key={tab.path}
-              onClick={() => router.push(tab.path)}
+              ref={isActive ? activeRef : undefined}
+              href={tab.path}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
+                "relative flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-medium transition-colors md:h-8",
                 isActive
-                  ? "border-brand text-brand"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  ? "text-brand-foreground"
+                  : "bg-foreground/[0.05] text-foreground/80 hover:bg-foreground/[0.08] hover:text-foreground"
               )}
             >
-              {tab.icon && <tab.icon className="w-4 h-4" />}
-              {tab.label}
-            </button>
+              {isActive && (
+                <motion.span
+                  layoutId="section-tab-pill"
+                  className="absolute inset-0 rounded-full bg-brand shadow-[var(--glow-brand)]"
+                  transition={reduceMotion ? { duration: 0 } : { type: "spring", ...LIQUID_SPRING }}
+                />
+              )}
+              {tab.icon && <tab.icon className="relative size-4" />}
+              <span className="relative">{tab.label}</span>
+            </Link>
           );
         })}
       </nav>

@@ -1,5 +1,6 @@
 "use client";
 
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/components/charts/theme";
 import { useMemo, useEffect, useRef } from "react";
 import { useData } from "@/providers/DataProvider";
 import { useInvestments } from "@/hooks/useInvestments";
@@ -14,18 +15,15 @@ import {
 import StatCard from "@/components/StatCard";
 import ChartCard from "@/components/ChartCard";
 import { fmt } from "@/utils/format";
-import { useTheme } from "@/providers/ThemeProvider";
 import { Wallet, TrendingUp, CreditCard, HandCoins, ShieldCheck } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
 import { motion } from "framer-motion";
 
-const ALLOC_COLORS = ["#1abf94", "#3b82f6", "#f59e0b", "#8b5cf6", "#6b7280"];
+const ALLOC_COLORS = ["#00C7BE", "#5856D6", "#FF9500", "#AF52DE", "#8E8E93"];
 
 export default function NetWorthPage() {
   const { accounts, currentAggregate } = useData();
   const { investments, isLoading } = useInvestments();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
   const { snapshots, isLoading: historyLoading, saveSnapshot } = useNetWorthHistory();
   const savedRef = useRef(false);
 
@@ -96,8 +94,7 @@ export default function NetWorthPage() {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="rounded-2xl border border-border p-6 sm:p-8 text-center"
-        style={{ background: isDark ? "#111827" : "#ffffff" }}
+        className="rounded-2xl border border-border p-6 sm:p-8 text-center bg-card"
       >
         <p className="text-sm text-muted-foreground mb-2">Total Net Worth</p>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground">
@@ -121,18 +118,18 @@ export default function NetWorthPage() {
             <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0080ff" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#0080ff" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#007AFF" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#007AFF" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#1f2937" : "#e5e7eb"} />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke={isDark ? "#6b7280" : "#9ca3af"} />
-              <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} stroke={isDark ? "#6b7280" : "#9ca3af"} width={60} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke={CHART_COLORS.axis} />
+              <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} stroke={CHART_COLORS.axis} width={60} />
               <Tooltip
                 formatter={(v) => [`₹${Number(v).toLocaleString("en-IN")}`, "Net Worth"]}
-                contentStyle={{ background: isDark ? "#1f2937" : "#fff", border: "1px solid #e5e7eb", borderRadius: 8 }}
+                contentStyle={CHART_TOOLTIP_STYLE}
               />
-              <Area type="monotone" dataKey="net_worth" stroke="#0080ff" fill="url(#nwGrad)" strokeWidth={2} dot={{ r: 3 }} />
+              <Area type="monotone" dataKey="net_worth" stroke="#007AFF" fill="url(#nwGrad)" strokeWidth={2} dot={{ r: 3 }} />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -166,8 +163,7 @@ export default function NetWorthPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="rounded-2xl border border-border p-5 flex flex-col items-center justify-center"
-          style={{ background: isDark ? "#111827" : "#ffffff" }}
+          className="rounded-2xl border border-border p-5 flex flex-col items-center justify-center bg-card"
         >
           <ShieldCheck className="w-6 h-6 mb-2" style={{ color: scoreColor }} />
           <p className="text-sm font-medium text-muted-foreground mb-3">Financial Health Score</p>
@@ -175,7 +171,7 @@ export default function NetWorthPage() {
           {/* Score Ring */}
           <div className="relative w-32 h-32">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="50" fill="none" stroke={isDark ? "#1f2937" : "#e5e7eb"} strokeWidth="10" />
+              <circle cx="60" cy="60" r="50" fill="none" stroke={CHART_COLORS.track} strokeWidth="10" />
               <circle
                 cx="60" cy="60" r="50" fill="none"
                 stroke={scoreColor}
@@ -199,8 +195,7 @@ export default function NetWorthPage() {
 
       {/* Detailed Breakdown */}
       <div
-        className="rounded-2xl border border-border p-5 space-y-3"
-        style={{ background: isDark ? "#111827" : "#ffffff" }}
+        className="rounded-2xl border border-border p-5 space-y-3 bg-card"
       >
         <h3 className="text-sm font-bold text-foreground">Detailed Breakdown</h3>
         <div className="space-y-2">

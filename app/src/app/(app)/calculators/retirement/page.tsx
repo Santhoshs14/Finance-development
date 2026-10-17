@@ -42,9 +42,9 @@ interface Scenario {
 }
 
 const SCENARIOS: Scenario[] = [
-  { label: "Conservative", returnRate: 8, color: "#64748b" },
-  { label: "Moderate", returnRate: 12, color: "#0080ff" },
-  { label: "Optimistic", returnRate: 15, color: "#10b981" },
+  { label: "Conservative", returnRate: 8, color: "#8E8E93" },
+  { label: "Moderate", returnRate: 12, color: "#007AFF" },
+  { label: "Optimistic", returnRate: 15, color: "#34C759" },
 ];
 
 export default function RetirementCalculatorPage() {
@@ -260,13 +260,13 @@ export default function RetirementCalculatorPage() {
                     />
                     <ReferenceLine
                       y={activeResult.corpusNeeded}
-                      stroke="#ef4444"
+                      stroke="#FF3B30"
                       strokeDasharray="4 4"
                       label={{
                         value: "Target",
                         position: "insideTopRight",
                         fontSize: 11,
-                        fill: "#ef4444",
+                        fill: "#FF3B30",
                       }}
                     />
                     <Area

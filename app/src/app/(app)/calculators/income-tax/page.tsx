@@ -21,7 +21,8 @@ import {
   type CapitalGainRow,
   type AssetClass,
 } from "@/utils/capitalGains";
-import { Card, CardContent, CardHeader, CardTitle, Input, Progress, Badge } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, Input, Progress, Badge, Button, Sheet } from "@/components/ui";
+import { inputVariants } from "@/components/ui/Input";
 import { CalculatorShell } from "@/components/calculators";
 import { calculateHraExemption } from "@/utils/calculators";
 import {
@@ -59,11 +60,11 @@ interface CapitalGainSale {
 }
 
 const OLD_SECTIONS = {
-  "80C": { label: "Section 80C", limit: 150000, icon: Shield, color: "#0080ff", description: "PPF, ELSS, Life Insurance, EPF, NSC, Tax-saving FDs, etc." },
-  "80D": { label: "Section 80D", limit: 25000, icon: Heart, color: "#ef4444", description: "Health Insurance Premiums (self & family)" },
+  "80C": { label: "Section 80C", limit: 150000, icon: Shield, color: "#007AFF", description: "PPF, ELSS, Life Insurance, EPF, NSC, Tax-saving FDs, etc." },
+  "80D": { label: "Section 80D", limit: 25000, icon: Heart, color: "#FF3B30", description: "Health Insurance Premiums (self & family)" },
   "80D_parents": { label: "80D (Parents)", limit: 50000, icon: Heart, color: "#f97316", description: "Parents' health insurance (₹50K if senior citizen)" },
-  "80CCD": { label: "Section 80CCD(1B)", limit: 50000, icon: PiggyBank, color: "#10b981", description: "NPS contribution (additional ₹50K beyond 80C)" },
-  HRA: { label: "HRA Exemption", limit: 0, icon: Building2, color: "#8b5cf6", description: "House Rent Allowance tax benefit" },
+  "80CCD": { label: "Section 80CCD(1B)", limit: 50000, icon: PiggyBank, color: "#34C759", description: "NPS contribution (additional ₹50K beyond 80C)" },
+  HRA: { label: "HRA Exemption", limit: 0, icon: Building2, color: "#AF52DE", description: "House Rent Allowance tax benefit" },
 } as const;
 
 type OldSectionKey = keyof typeof OLD_SECTIONS;
@@ -281,7 +282,7 @@ export default function TaxPage() {
     return rollupFy(inFy);
   }, [capitalGains, selectedFY]);
 
-  const inputClass = "w-full rounded-lg px-3 py-2 text-sm border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-brand/40";
+  const inputClass = inputVariants();
 
   return (
     <CalculatorShell
@@ -677,11 +678,18 @@ export default function TaxPage() {
         </Card>
       </div>
 
-      {/* Add Deduction Modal (Old Regime) */}
-      {showAdd && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAdd(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md mx-4 rounded-2xl bg-card border border-border shadow-2xl p-6">
-            <h3 className="text-lg font-bold text-foreground mb-4">Add Tax Deduction</h3>
+      {/* Add Deduction Sheet (Old Regime) */}
+      <Sheet
+        open={showAdd}
+        onOpenChange={setShowAdd}
+        title="Add Tax Deduction"
+        footer={
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={() => setShowAdd(false)} className="flex-1">Cancel</Button>
+            <Button onClick={addEntry} className="flex-1">Add</Button>
+          </div>
+        }
+      >
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Section</label>
@@ -703,20 +711,21 @@ export default function TaxPage() {
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Amount (₹)</label>
                 <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" />
               </div>
-              <div className="flex gap-3">
-                <button onClick={() => setShowAdd(false)} className="flex-1 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted">Cancel</button>
-                <button onClick={addEntry} className="flex-1 py-2 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand/90">Add</button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Sheet>
 
-      {/* Add Capital-Gain Sale Modal */}
-      {showAddSale && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAddSale(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md mx-4 rounded-2xl bg-card border border-border shadow-2xl p-6">
-            <h3 className="text-lg font-bold text-foreground mb-4">Record Asset Sale</h3>
+      {/* Add Capital-Gain Sale Sheet */}
+      <Sheet
+        open={showAddSale}
+        onOpenChange={setShowAddSale}
+        title="Record Asset Sale"
+        footer={
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={() => setShowAddSale(false)} className="flex-1">Cancel</Button>
+            <Button onClick={addSale} className="flex-1">Add Sale</Button>
+          </div>
+        }
+      >
             <div className="space-y-3">
               <Input value={saleForm.asset} onChange={(e) => setSaleForm({ ...saleForm, asset: e.target.value })} placeholder="Asset name (e.g. Nifty 50 Index Fund)" />
               <select
@@ -752,14 +761,8 @@ export default function TaxPage() {
                   <Input type="number" value={saleForm.sellPrice} onChange={(e) => setSaleForm({ ...saleForm, sellPrice: e.target.value })} placeholder="0" />
                 </div>
               </div>
-              <div className="flex gap-3 pt-1">
-                <button onClick={() => setShowAddSale(false)} className="flex-1 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted">Cancel</button>
-                <button onClick={addSale} className="flex-1 py-2 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand/90">Add Sale</button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Sheet>
     </CalculatorShell>
   );
 }

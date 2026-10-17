@@ -1,9 +1,9 @@
 "use client";
 
+import { CHART_TICK, CHART_TOOLTIP_STYLE } from "@/components/charts/theme";
 import { useState, useMemo } from "react";
 import { useData } from "@/providers/DataProvider";
 import { fmt } from "@/utils/format";
-import { useTheme } from "@/providers/ThemeProvider";
 import ChartCard from "@/components/ChartCard";
 import StatCard from "@/components/StatCard";
 import { Calendar, TrendingUp, TrendingDown, PiggyBank, Hash, Award, Flame } from "lucide-react";
@@ -16,8 +16,6 @@ const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 
 export default function YearlyReviewPage() {
   const { transactions } = useData();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
 
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
@@ -99,7 +97,7 @@ export default function YearlyReviewPage() {
     <div className="space-y-6">
       {/* Header with export */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Yearly Review</h1>
+        <h1 className="text-title1 font-bold md:text-xl">Yearly Review</h1>
         <ExportBar elementId="yearly-report" filename={`yearly-${year}`} title={`Yearly Report ${year}`} />
       </div>
 
@@ -123,8 +121,7 @@ export default function YearlyReviewPage() {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="rounded-2xl border border-border p-6 sm:p-8 text-center space-y-2"
-        style={{ background: isDark ? "#111827" : "#ffffff" }}
+        className="rounded-2xl border border-border p-6 sm:p-8 text-center space-y-2 bg-card"
       >
         <Calendar className="w-8 h-8 text-brand mx-auto mb-2" />
         <h2 className="text-xl font-extrabold text-foreground">{year} Money Wrapped</h2>
@@ -142,11 +139,11 @@ export default function YearlyReviewPage() {
       <ChartCard title="Monthly Spending" subtitle={`${year} month-over-month`}>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={monthlyData}>
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} />
-            <YAxis tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip contentStyle={{ background: isDark ? "#1f2937" : "#fff", border: "none", borderRadius: 12 }} formatter={(v) => [fmt(Number(v)), ""]} />
-            <Bar dataKey="income" fill="#1abf94" radius={[3, 3, 0, 0]} name="Income" />
-            <Bar dataKey="expense" fill="#ef4444" radius={[3, 3, 0, 0]} name="Expense" />
+            <XAxis dataKey="month" tick={CHART_TICK} />
+            <YAxis tick={CHART_TICK} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+            <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => [fmt(Number(v)), ""]} />
+            <Bar dataKey="income" fill="#00C7BE" radius={[3, 3, 0, 0]} name="Income" />
+            <Bar dataKey="expense" fill="#FF3B30" radius={[3, 3, 0, 0]} name="Expense" />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -154,7 +151,7 @@ export default function YearlyReviewPage() {
       {/* Highlights Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Top Categories */}
-        <div className="rounded-2xl border border-border p-5 space-y-3" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+        <div className="rounded-2xl border border-border p-5 space-y-3 bg-card">
           <div className="flex items-center gap-2">
             <Award className="w-4 h-4 text-brand" />
             <h3 className="text-sm font-bold text-foreground">Top Categories</h3>
@@ -171,7 +168,7 @@ export default function YearlyReviewPage() {
         </div>
 
         {/* Fun Stats */}
-        <div className="rounded-2xl border border-border p-5 space-y-3" style={{ background: isDark ? "#111827" : "#ffffff" }}>
+        <div className="rounded-2xl border border-border p-5 space-y-3 bg-card">
           <div className="flex items-center gap-2">
             <Flame className="w-4 h-4 text-brand" />
             <h3 className="text-sm font-bold text-foreground">Fun Stats</h3>

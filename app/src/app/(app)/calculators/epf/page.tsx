@@ -155,7 +155,7 @@ export default function EpfCalculatorPage() {
           xKey="age"
           xLabelPrefix="Age"
           stacked={false}
-          series={[{ key: "balance", name: "Balance", color: "#0080ff" }]}
+          series={[{ key: "balance", name: "Balance", color: "#007AFF" }]}
         />
 
         <BreakdownTable

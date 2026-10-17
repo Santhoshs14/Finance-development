@@ -21,16 +21,16 @@ import { fmt } from "@/utils/format";
 import QuickAddTransaction from "@/components/QuickAddTransaction";
 import { SortableWidget } from "@/components/SortableWidget";
 import { SkeletonCard } from "@/components/SkeletonLoader";
-import { useDashboardLayout, WIDGET_IDS, WIDGET_LABELS, type WidgetId } from "@/hooks/useDashboardLayout";
+import { useDashboardLayout, WIDGET_LABELS, type WidgetId } from "@/hooks/useDashboardLayout";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Progress } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Progress, Sheet } from "@/components/ui";
 import {
   TrendingUp, TrendingDown, Wallet, Landmark, PiggyBank,
   CreditCard, BarChart3, Plus, ArrowUpRight, ArrowDownRight,
   AlertTriangle, CheckCircle2, Zap, Target,
-  ArrowLeftRight, CircleDot, Settings2,
+  ArrowLeftRight, CircleDot, Settings2, ChevronUp, ChevronDown,
 } from "lucide-react";
 
 /* ─── KPI Widget ─── */
@@ -41,14 +41,14 @@ function KpiStrip({ items }: { items: Array<{ label: string; value: number; icon
         <Card key={item.label} className="group hover:border-brand/30 transition-all duration-300">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="text-[13px] font-medium text-muted-foreground">
                 {item.label}
               </span>
-              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center transition-colors", `bg-[${item.color}]/10`)} style={{ backgroundColor: `${item.color}15` }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors" style={{ color: item.color, backgroundColor: `color-mix(in srgb, ${item.color} 12%, transparent)` }}>
                 {item.icon}
               </div>
             </div>
-            <p className="text-xl font-bold tracking-tight text-foreground">
+            <p className="font-rounded text-xl font-bold tabular-nums tracking-tight text-foreground">
               {item.isPercent ? (
                 <CountUp end={item.value} decimals={1} suffix="%" duration={1} />
               ) : (
@@ -273,7 +273,7 @@ export default function DashboardPage() {
     const map: Record<string, { name: string; value: number; color: string }> = {};
     cycleTxns.forEach((t) => {
       if (t.category === "Income" || t.amount >= 0 || t.category === "Transfer" || t.payment_type === "Credit Card" || t.payment_type?.includes("Transfer") || t.category === "Credit Card Payment") return;
-      const col = categories.find((c) => c.name === t.category)?.color || "#94a3b8";
+      const col = categories.find((c) => c.name === t.category)?.color || "#AEAEB2";
       if (!map[t.category]) map[t.category] = { name: t.category, value: 0, color: col };
       map[t.category].value += Math.abs(t.amount);
     });
@@ -307,7 +307,7 @@ export default function DashboardPage() {
       .filter(([cat]) => cat !== "Income" && cat !== "Transfer" && cat !== "Credit Card Payment")
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([cat, spent]) => ({ category: cat, spent, color: categories.find((c) => c.name === cat)?.color || "#94a3b8" }));
+      .map(([cat, spent]) => ({ category: cat, spent, color: categories.find((c) => c.name === cat)?.color || "#AEAEB2" }));
   }, [currentAggregate, categories]);
 
   // CC overview
@@ -395,43 +395,60 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <p className="text-sm text-muted-foreground">{currentCycle.label} · Day {cycleInfo.daysElapsed} of {cycleInfo.totalDays}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowWidgetPicker(true)} className="gap-1.5">
-            <Settings2 className="w-3.5 h-3.5" /> Customize
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 truncate text-sm text-muted-foreground">{currentCycle.label} · Day {cycleInfo.daysElapsed} of {cycleInfo.totalDays}</p>
+        <div className="flex shrink-0 gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowWidgetPicker(true)} className="gap-1.5" aria-label="Customize dashboard">
+            <Settings2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Customize</span>
           </Button>
           <Button onClick={() => setShowQuickAdd(true)} className="gap-2">
-            <Plus className="w-4 h-4" /> Add Transaction
+            <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Transaction</span><span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
 
-      {/* Widget Picker Modal */}
-      {showWidgetPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowWidgetPicker(false)}>
-          <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <CardContent className="p-5 space-y-3">
-              <h3 className="text-base font-bold text-foreground">Dashboard Widgets</h3>
-              <p className="text-xs text-muted-foreground">Toggle widgets on/off. Drag to reorder on the dashboard.</p>
-              {WIDGET_IDS.map((id) => (
-                <label key={id} className="flex items-center justify-between py-2 cursor-pointer">
-                  <span className="text-sm text-foreground">{WIDGET_LABELS[id]}</span>
-                  <input
-                    type="checkbox"
-                    checked={isVisible(id)}
-                    onChange={() => toggleVisibility(id)}
-                    className="h-4 w-4 rounded border-border accent-brand"
-                  />
-                </label>
-              ))}
-              <Button variant="outline" className="w-full mt-2" onClick={() => setShowWidgetPicker(false)}>Done</Button>
-            </CardContent>
-          </Card>
+      {/* Widget Picker */}
+      <Sheet
+        open={showWidgetPicker}
+        onOpenChange={setShowWidgetPicker}
+        title="Dashboard Widgets"
+        description="Toggle widgets on or off and change their order."
+        footer={<Button variant="secondary" className="w-full" onClick={() => setShowWidgetPicker(false)}>Done</Button>}
+      >
+        <div className="overflow-hidden rounded-2xl bg-card">
+          {layout.order.map((id, index) => (
+            <div key={id} className="flex min-h-12 items-center gap-2 border-b border-border/70 pl-4 pr-2 last:border-b-0">
+              <label className="flex flex-1 cursor-pointer items-center gap-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={isVisible(id)}
+                  onChange={() => toggleVisibility(id)}
+                  className="h-5 w-5 rounded border-border accent-brand"
+                />
+                <span className="text-[15px] text-foreground md:text-sm">{WIDGET_LABELS[id]}</span>
+              </label>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Move ${WIDGET_LABELS[id]} up`}
+                disabled={index === 0}
+                onClick={() => reorder(id, layout.order[index - 1])}
+              >
+                <ChevronUp className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Move ${WIDGET_LABELS[id]} down`}
+                disabled={index === layout.order.length - 1}
+                onClick={() => reorder(id, layout.order[index + 1])}
+              >
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
         </div>
-      )}
+      </Sheet>
 
       {/* Sortable Widgets */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -442,31 +459,31 @@ export default function DashboardPage() {
               <SortableWidget key={widgetId} id={widgetId}>
                 {widgetId === "kpi-strip" && (
       <KpiStrip items={[
-        { label: "Net Worth", value: netWorth, icon: <Wallet className="w-4 h-4" style={{ color: "#0080ff" }} />, color: "#0080ff" },
-        { label: "Balance", value: accountsBalance, icon: <Landmark className="w-4 h-4" style={{ color: "#10b981" }} />, color: "#10b981" },
-        { label: "Income", value: cashFlow.totalIncome, icon: <TrendingUp className="w-4 h-4" style={{ color: "#22c55e" }} />, color: "#22c55e", trend: getTrend(cashFlow.totalIncome, "totalIncome") },
-        { label: "Expenses", value: cashFlow.totalExpenses, icon: <TrendingDown className="w-4 h-4" style={{ color: "#ef4444" }} />, color: "#ef4444", trend: getTrend(cashFlow.totalExpenses, "totalSpent") },
-        { label: "Savings Rate", value: savingsRate, icon: <PiggyBank className="w-4 h-4" style={{ color: "#f59e0b" }} />, color: "#f59e0b", isPercent: true },
+        { label: "Net Worth", value: netWorth, icon: <Wallet className="w-4 h-4" />, color: "hsl(var(--brand))" },
+        { label: "Balance", value: accountsBalance, icon: <Landmark className="w-4 h-4" />, color: "hsl(var(--chart-5))" },
+        { label: "Income", value: cashFlow.totalIncome, icon: <TrendingUp className="w-4 h-4" />, color: "hsl(var(--success))", trend: getTrend(cashFlow.totalIncome, "totalIncome") },
+        { label: "Expenses", value: cashFlow.totalExpenses, icon: <TrendingDown className="w-4 h-4" />, color: "hsl(var(--danger))", trend: getTrend(cashFlow.totalExpenses, "totalSpent") },
+        { label: "Savings Rate", value: savingsRate, icon: <PiggyBank className="w-4 h-4" />, color: "hsl(var(--accent))", isPercent: true },
       ]} />
                 )}
                 {widgetId === "cash-flow-row" && (
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Cash Flow Chart (2 cols) */}
-        <Card className="lg:col-span-2">
+        <Card className="col-span-2">
           <CardHeader>
             <CardTitle>Cash Flow</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
               {[
                 { label: "Income", value: cashFlow.totalIncome, color: "text-success", sub: null as string | null },
                 { label: "Expenses", value: cashFlow.totalExpenses, color: "text-danger", sub: cashFlow.investmentSpend > 0 ? `+ ${fmt(cashFlow.investmentSpend)} invested` : null },
                 { label: "Net", value: cashFlow.netSavings, color: cashFlow.netSavings >= 0 ? "text-success" : "text-danger", sub: null as string | null },
                 { label: "Daily Avg", value: cashFlow.dailyAvgSpend, color: "text-warning", sub: null as string | null },
               ].map(({ label, value, color, sub }) => (
-                <div key={label} className="rounded-lg bg-muted/50 p-2.5">
+                <div key={label} className="rounded-xl bg-muted/50 p-2.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase">{label}</p>
-                  <p className={cn("text-sm font-bold mt-0.5", color)}>{fmt(Math.abs(value))}</p>
+                  <p className={cn("font-rounded text-sm font-bold tabular-nums mt-0.5", color)}>{fmt(Math.abs(value))}</p>
                   {sub && <p className="text-[10px] font-medium text-brand mt-0.5">{sub}</p>}
                 </div>
               ))}
@@ -631,7 +648,7 @@ export default function DashboardPage() {
                         <p className="text-[11px] text-muted-foreground">{t.date}</p>
                       </div>
                     </div>
-                    <span className={cn("text-sm font-semibold", t.amount > 0 ? "text-success" : "text-foreground")}>
+                    <span className={cn("font-rounded text-sm font-semibold tabular-nums", t.amount > 0 ? "text-success" : "text-foreground")}>
                       {t.amount > 0 ? "+" : ""}{fmt(t.amount)}
                     </span>
                   </div>

@@ -8,7 +8,7 @@ import TransactionTable from "@/components/TransactionTable";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { fmt } from "@/utils/format";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle, Button, Input } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Sheet } from "@/components/ui";
 import { Wallet, CreditCard, Plus, ArrowUpRight, ArrowDownRight, Pencil, Trash2, Banknote, PiggyBank } from "lucide-react";
 import toast from "react-hot-toast";
 import { SkeletonCard } from "@/components/SkeletonLoader";
@@ -49,12 +49,34 @@ function AccountModal({ open, onClose, onSubmit, initial }: {
     setPointsBalance(String(initial?.reward_points_balance ?? ""));
   }, [initial, open]);
 
-  if (!open) return null;
+  const handleSave = () => {
+    if (!name.trim()) { toast.error("Name required"); return; }
+    const payload: Record<string, unknown> = { account_name: name.trim(), type, balance: parseFloat(balance) || 0 };
+    if (type === "credit") {
+      payload.credit_limit = parseFloat(creditLimit) || 0;
+      payload.liability = parseFloat(balance) || 0;
+      if (billingDay.trim() !== "") payload.billing_cycle_start_day = parseInt(billingDay, 10);
+      if (dueDays.trim() !== "") payload.due_days_after = parseInt(dueDays, 10);
+      if (rewardRate.trim() !== "") payload.reward_rate = parseFloat(rewardRate);
+      if (pointValue.trim() !== "") payload.point_value = parseFloat(pointValue);
+      if (pointsBalance.trim() !== "") payload.reward_points_balance = parseFloat(pointsBalance);
+    }
+    onSubmit(payload);
+    onClose();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold text-foreground">{initial ? "Edit Account" : "Add Account"}</h2>
+    <Sheet
+      open={open}
+      onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}
+      title={initial ? "Edit Account" : "Add Account"}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} className="flex-1 md:flex-none">Cancel</Button>
+          <Button onClick={handleSave} className="flex-1 md:flex-none">{initial ? "Save" : "Create"}</Button>
+        </div>
+      }
+    >
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Account Name</label>
@@ -66,9 +88,10 @@ function AccountModal({ open, onClose, onSubmit, initial }: {
               {ACCOUNT_TYPES.map((t) => (
                 <button
                   key={t.value}
+                  type="button"
                   onClick={() => setType(t.value)}
                   className={cn(
-                    "flex flex-col items-center gap-1 p-2 rounded-lg border text-xs font-medium transition-all",
+                    "flex flex-col items-center gap-1 rounded-xl border p-2.5 text-xs font-medium transition-all",
                     type === t.value ? "border-brand bg-brand/10 text-brand" : "border-border text-muted-foreground hover:bg-muted"
                   )}
                 >
@@ -117,30 +140,7 @@ function AccountModal({ open, onClose, onSubmit, initial }: {
             </>
           )}
         </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button
-            onClick={() => {
-              if (!name.trim()) { toast.error("Name required"); return; }
-              const payload: Record<string, unknown> = { account_name: name.trim(), type, balance: parseFloat(balance) || 0 };
-              if (type === "credit") {
-                payload.credit_limit = parseFloat(creditLimit) || 0;
-                payload.liability = parseFloat(balance) || 0;
-                if (billingDay.trim() !== "") payload.billing_cycle_start_day = parseInt(billingDay, 10);
-                if (dueDays.trim() !== "") payload.due_days_after = parseInt(dueDays, 10);
-                if (rewardRate.trim() !== "") payload.reward_rate = parseFloat(rewardRate);
-                if (pointValue.trim() !== "") payload.point_value = parseFloat(pointValue);
-                if (pointsBalance.trim() !== "") payload.reward_points_balance = parseFloat(pointsBalance);
-              }
-              onSubmit(payload);
-              onClose();
-            }}
-          >
-            {initial ? "Save" : "Create"}
-          </Button>
-        </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -265,7 +265,7 @@ export default function AccountsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Account List */}
         <Card>
-          <CardContent className="p-4 space-y-1 max-h-[calc(100vh-320px)] overflow-y-auto">
+          <CardContent className="p-4 space-y-1 max-h-[calc(100dvh-320px)] overflow-y-auto">
             {Object.entries(groupedAccounts).map(([type, accs]) => (
               <div key={type}>
                 <h3 className="text-[11px] font-semibold uppercase text-muted-foreground mb-2 mt-3 first:mt-0">
@@ -384,7 +384,7 @@ export default function AccountsPage() {
                     categories={categories}
                     accounts={accounts}
                     creditCards={creditCards}
-                    maxHeight="calc(100vh - 520px)"
+                    maxHeight="calc(100dvh - 520px)"
                   />
                 </CardContent>
               </Card>

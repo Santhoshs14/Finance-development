@@ -151,7 +151,7 @@ export default function GoalCalculatorPage() {
           data={result.schedule}
           xKey="year"
           stacked={false}
-          series={[{ key: "value", name: "Projected Corpus", color: "#0080ff" }]}
+          series={[{ key: "value", name: "Projected Corpus", color: "#007AFF" }]}
         />
 
         <BreakdownTable

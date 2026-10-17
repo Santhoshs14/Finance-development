@@ -38,7 +38,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-4xl space-y-5">
-      <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+      <h1 className="text-large-title font-bold text-foreground md:text-2xl">Settings</h1>
 
       {/* Tab bar */}
       <div className="flex gap-1 p-1 rounded-xl bg-muted/50 overflow-x-auto">
@@ -230,7 +230,7 @@ function CategoriesTab() {
   const { categories } = useData();
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState("#6366f1");
+  const [newColor, setNewColor] = useState("#5856D6");
   const [confirmState, setConfirmState] = useState<{ open: boolean; id?: string; name?: string }>({ open: false });
 
   const addMutation = useMutation({
@@ -245,7 +245,7 @@ function CategoriesTab() {
     onError: () => toast.error("Failed to delete"),
   });
 
-  const PRESET_COLORS = ["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#6366f1", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#64748b"];
+  const PRESET_COLORS = ["#FF3B30", "#FF9500", "#FFCC00", "#34C759", "#00C7BE", "#32ADE6", "#007AFF", "#5856D6", "#AF52DE", "#FF2D55", "#A2845E", "#8E8E93"];
 
   return (
     <div className="space-y-5">
@@ -258,7 +258,7 @@ function CategoriesTab() {
           <div className="flex items-end gap-3 pb-4 border-b border-border">
             <div className="flex-1">
               <p className="text-xs text-muted-foreground mb-1">Name</p>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category" className="h-9" />
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category" className="md:h-9" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Color</p>

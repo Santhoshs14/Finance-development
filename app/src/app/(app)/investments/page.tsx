@@ -16,7 +16,6 @@ import { fmt } from "@/utils/format";
 import StatCard from "@/components/StatCard";
 import ChartCard from "@/components/ChartCard";
 import EmptyState from "@/components/EmptyState";
-import { useTheme } from "@/providers/ThemeProvider";
 import {
   TrendingUp,
   TrendingDown,
@@ -28,7 +27,7 @@ import {
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
-const PIE_COLORS = ["#1abf94", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899", "#6b7280"];
+const PIE_COLORS = ["#00C7BE", "#5856D6", "#FF9500", "#AF52DE", "#FF2D55", "#8E8E93"];
 const FREQ_TO_MONTHLY: Record<string, number> = {
   weekly: 52 / 12,
   monthly: 1,
@@ -43,8 +42,6 @@ export default function InvestmentsOverviewPage() {
   const { investments, isLoading } = useInvestments();
   const { sips } = useSips();
   const { accounts } = useData();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
   const router = useRouter();
 
   const plData = useMemo(() => calculateInvestmentPL(investments), [investments]);
@@ -333,7 +330,6 @@ export default function InvestmentsOverviewPage() {
             key={link.href}
             href={link.href}
             className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-card p-4 hover:border-brand/50 transition-colors"
-            style={{ background: isDark ? "#111827" : undefined }}
           >
             <span className="flex items-center gap-2 text-sm font-medium text-foreground">
               <link.icon className="w-4 h-4 text-brand" />

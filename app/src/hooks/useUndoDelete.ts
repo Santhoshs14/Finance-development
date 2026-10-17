@@ -56,7 +56,7 @@ export function useUndoDelete<T = unknown>(options: UndoDeleteOptions<T>) {
                 style: {
                   fontWeight: 600,
                   fontSize: "13px",
-                  color: "#0080ff",
+                  color: "#007AFF",
                   background: "none",
                   border: "none",
                   cursor: "pointer",

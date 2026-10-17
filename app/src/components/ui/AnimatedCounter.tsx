@@ -89,7 +89,7 @@ export function AnimatedCounter({
   return (
     <span
       className={cn(
-        "tabular-nums tracking-tight",
+        "font-rounded tabular-nums tracking-tight",
         large && "text-3xl font-bold",
         colorClass,
         className

@@ -7,7 +7,8 @@ import { budgetSnapshotsAPI, profileAPI, categoriesAPI } from "@/services/api";
 import { getCycleDayInfo, getRecentFinancialMonths } from "@/utils/financialMonth";
 import { fmt } from "@/utils/format";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Progress, Input } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Progress, Input, Sheet } from "@/components/ui";
+import { inputVariants } from "@/components/ui/Input";
 import {
   ChevronLeft, ChevronRight, Pencil, Check, X, Plus,
   AlertTriangle, ShieldCheck, TrendingUp, Target,
@@ -40,7 +41,7 @@ export default function BudgetsPage() {
   const [addCatLimit, setAddCatLimit] = useState("");
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCatName, setNewCatName] = useState("");
-  const [newCatColor, setNewCatColor] = useState("#6366f1");
+  const [newCatColor, setNewCatColor] = useState("#5856D6");
   const [newCatLimit, setNewCatLimit] = useState("");
   const [creatingCategory, setCreatingCategory] = useState(false);
 
@@ -99,7 +100,7 @@ export default function BudgetsPage() {
         const projected = cycleInfo.daysElapsed > 3 && isCurrentCycle
           ? (spent / cycleInfo.daysElapsed) * cycleInfo.totalDays
           : undefined;
-        const color = categories.find((c) => c.name === cat)?.color || "#94a3b8";
+        const color = categories.find((c) => c.name === cat)?.color || "#AEAEB2";
         return { cat, limit, spent, pct, remaining, dailyAllowance, projected, color };
       })
       .sort((a, b) => b.spent - a.spent);
@@ -146,7 +147,7 @@ export default function BudgetsPage() {
       setShowNewCategory(false);
       setShowAddBudget(false);
       setNewCatName("");
-      setNewCatColor("#6366f1");
+      setNewCatColor("#5856D6");
       setNewCatLimit("");
     } catch { toast.error("Failed to create category"); }
     setCreatingCategory(false);
@@ -186,26 +187,23 @@ export default function BudgetsPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">{currentCycle?.label}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowAddBudget(true)}>
-            <Plus className="w-4 h-4 mr-1.5" /> Add Budget
-          </Button>
-          <Button variant="outline" size="icon-sm" onClick={() => setCycleIdx(Math.min(cycleIdx + 1, recentCycles.length - 1))} disabled={cycleIdx >= recentCycles.length - 1}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="icon-sm" aria-label="Previous cycle" onClick={() => setCycleIdx(Math.min(cycleIdx + 1, recentCycles.length - 1))} disabled={cycleIdx >= recentCycles.length - 1}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="text-sm font-medium text-foreground min-w-[100px] text-center">{currentCycle?.label}</span>
-          <Button variant="outline" size="icon-sm" onClick={() => setCycleIdx(Math.max(cycleIdx - 1, 0))} disabled={cycleIdx === 0}>
+          <span className="min-w-[96px] text-center text-sm font-medium text-foreground">{currentCycle?.label}</span>
+          <Button variant="outline" size="icon-sm" aria-label="Next cycle" onClick={() => setCycleIdx(Math.max(cycleIdx - 1, 0))} disabled={cycleIdx === 0}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
+        <Button size="sm" onClick={() => setShowAddBudget(true)}>
+          <Plus className="w-4 h-4 mr-1" /> Add Budget
+        </Button>
       </div>
 
       {/* Overview Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Salary */}
         <Card>
           <CardContent className="p-4">
@@ -223,7 +221,7 @@ export default function BudgetsPage() {
               )}
             </div>
             {editingSalary ? (
-              <Input value={salaryInput} onChange={(e) => setSalaryInput(e.target.value)} className="h-7 text-sm" autoFocus />
+              <Input value={salaryInput} onChange={(e) => setSalaryInput(e.target.value)} className="h-9 text-sm md:h-7" autoFocus />
             ) : (
               <p className="text-lg font-bold text-foreground">{fmt(salary)}</p>
             )}
@@ -348,7 +346,7 @@ export default function BudgetsPage() {
                   ) : (
                     <button
                       onClick={() => { setEditingCatId(b.cat); setEditValue(String(b.limit)); }}
-                      className="text-[11px] text-brand hover:underline flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="text-[11px] text-brand hover:underline flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 pointer-coarse:text-xs transition-opacity"
                     >
                       <Pencil className="w-3 h-3" /> Edit limit
                     </button>
@@ -394,40 +392,35 @@ export default function BudgetsPage() {
         </Card>
       )}
 
-      {/* Edit modal for unbudgeted items */}
-      {editingCatId && !budgetCards.find((b) => b.cat === editingCatId && b.limit > 0) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setEditingCatId(null)}>
-          <Card className="w-[320px]" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle>Set Budget for {editingCatId}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Input
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                placeholder="Monthly limit (₹)"
-                autoFocus
-                onKeyDown={(e) => { if (e.key === "Enter") handleSaveBudget(editingCatId); }}
-              />
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => setEditingCatId(null)}>Cancel</Button>
-                <Button size="sm" onClick={() => handleSaveBudget(editingCatId)}>Save</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Edit sheet for unbudgeted items */}
+      <Sheet
+        open={!!editingCatId && !budgetCards.find((b) => b.cat === editingCatId && b.limit > 0)}
+        onOpenChange={(open) => { if (!open) setEditingCatId(null); }}
+        title={`Set Budget for ${editingCatId ?? ""}`}
+        footer={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setEditingCatId(null)} className="flex-1">Cancel</Button>
+            <Button onClick={() => editingCatId && handleSaveBudget(editingCatId)} className="flex-1">Save</Button>
+          </div>
+        }
+      >
+        <Input
+          type="number"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          placeholder="Monthly limit (₹)"
+          autoFocus
+          onKeyDown={(e) => { if (e.key === "Enter" && editingCatId) handleSaveBudget(editingCatId); }}
+        />
+      </Sheet>
 
-      {/* Add Budget Modal */}
-      {showAddBudget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setShowAddBudget(false); setShowNewCategory(false); }}>
-          <Card className="w-[400px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-brand" /> {showNewCategory ? "Create New Category" : "Add Category Budget"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      {/* Add Budget Sheet */}
+      <Sheet
+        open={showAddBudget}
+        onOpenChange={(open) => { if (!open) { setShowAddBudget(false); setShowNewCategory(false); } }}
+        title={showNewCategory ? "Create New Category" : "Add Category Budget"}
+      >
+            <div className="space-y-4">
               {showNewCategory ? (
                 <>
                   <div>
@@ -449,11 +442,13 @@ export default function BudgetsPage() {
                         className="w-9 h-9 rounded-lg border border-input cursor-pointer"
                       />
                       <div className="flex flex-wrap gap-1.5">
-                        {["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#6366f1", "#84cc16"].map((c) => (
+                        {["#FF3B30", "#FF9500", "#34C759", "#007AFF", "#AF52DE", "#FF2D55", "#32ADE6", "#FFCC00", "#5856D6", "#00C7BE"].map((c) => (
                           <button
                             key={c}
+                            type="button"
+                            aria-label={`Use color ${c}`}
                             onClick={() => setNewCatColor(c)}
-                            className={cn("w-6 h-6 rounded-full border-2 transition-transform", newCatColor === c ? "border-foreground scale-110" : "border-transparent")}
+                            className={cn("w-7 h-7 rounded-full border-2 transition-transform", newCatColor === c ? "border-foreground scale-110" : "border-transparent")}
                             style={{ backgroundColor: c }}
                           />
                         ))}
@@ -493,7 +488,7 @@ export default function BudgetsPage() {
                         <select
                           value={addCatName}
                           onChange={(e) => setAddCatName(e.target.value)}
-                          className="w-full h-9 px-3 rounded-lg border border-input bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                          className={inputVariants()}
                         >
                           <option value="">— Select category —</option>
                           {availableCategories.map((c) => (
@@ -537,10 +532,8 @@ export default function BudgetsPage() {
                   </div>
                 </>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+      </Sheet>
     </div>
   );
 }

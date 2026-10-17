@@ -135,8 +135,8 @@ export default function InflationCalculatorPage() {
           xKey="year"
           stacked={false}
           series={[
-            { key: "futureCost", name: "Future Cost", color: "#ef4444" },
-            { key: "purchasingPower", name: "Purchasing Power", color: "#0080ff" },
+            { key: "futureCost", name: "Future Cost", color: "#FF3B30" },
+            { key: "purchasingPower", name: "Purchasing Power", color: "#007AFF" },
           ]}
         />
 

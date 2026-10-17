@@ -146,8 +146,8 @@ export default function FdCalculatorPage() {
           data={result.schedule}
           xKey="year"
           series={[
-            { key: "invested", name: "Principal", color: "#0080ff" },
-            { key: "returns", name: "Interest", color: "#10b981" },
+            { key: "invested", name: "Principal", color: "#007AFF" },
+            { key: "returns", name: "Interest", color: "#34C759" },
           ]}
         />
 
