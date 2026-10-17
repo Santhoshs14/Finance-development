@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { THEME_COLORS } from "@/lib/theme-colors";
+
+const exportBackground = () =>
+  document.documentElement.classList.contains("dark") ? THEME_COLORS.dark : THEME_COLORS.light;
 
 export function useExportReport() {
   const [exporting, setExporting] = useState(false);
@@ -17,7 +21,7 @@ export function useExportReport() {
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        backgroundColor: document.documentElement.classList.contains("dark") ? "#1a1a2e" : "#ffffff",
+        backgroundColor: exportBackground(),
       });
 
       const imgData = canvas.toDataURL("image/png");
@@ -49,7 +53,7 @@ export function useExportReport() {
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        backgroundColor: document.documentElement.classList.contains("dark") ? "#1a1a2e" : "#ffffff",
+        backgroundColor: exportBackground(),
       });
 
       const blob = await new Promise<Blob>((resolve) =>

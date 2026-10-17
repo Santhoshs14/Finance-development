@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { THEME_COLORS } from "@/lib/theme-colors";
 
 type Theme = "light" | "dark" | "system";
 
@@ -13,15 +14,16 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
+  // null until read from storage so the class set by the pre-paint script isn't overwritten
+  const [theme, setThemeState] = useState<Theme | null>(null);
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as Theme | null;
-    if (stored) setThemeState(stored);
+    setThemeState((localStorage.getItem("theme") as Theme | null) ?? "system");
   }, []);
 
   useEffect(() => {
+    if (!theme) return;
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
     const resolve = () => {
@@ -32,13 +34,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             : "light"
           : theme;
       setResolvedTheme(resolved);
-      if (resolved === "dark") {
-        document.documentElement.classList.add("dark");
-        document.documentElement.classList.remove("light");
-      } else {
-        document.documentElement.classList.remove("dark");
-        document.documentElement.classList.add("light");
-      }
+      const root = document.documentElement;
+      root.classList.toggle("dark", resolved === "dark");
+      root.classList.toggle("light", resolved === "light");
+      // Keeps the iOS status bar in step when the user overrides the system theme
+      document
+        .querySelectorAll('meta[name="theme-color"]')
+        .forEach((meta) => meta.setAttribute("content", THEME_COLORS[resolved]));
     };
 
     resolve();
@@ -52,7 +54,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme: theme ?? "system", resolvedTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

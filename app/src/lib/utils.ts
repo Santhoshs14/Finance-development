@@ -1,5 +1,31 @@
 import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+
+// Teach tailwind-merge the iOS text styles from globals.css; otherwise it treats
+// `text-title3` as a color and drops it next to `text-foreground`.
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      "font-size": [
+        {
+          text: [
+            "large-title",
+            "title1",
+            "title2",
+            "title3",
+            "headline",
+            "body",
+            "callout",
+            "subhead",
+            "footnote",
+            "caption",
+            "caption2",
+          ],
+        },
+      ],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
