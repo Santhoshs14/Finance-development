@@ -11,7 +11,8 @@ import QuickAddTransaction from "@/components/QuickAddTransaction";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { fmt } from "@/utils/format";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, Button, Badge, Input } from "@/components/ui";
+import { Card, CardContent, Button, Badge, Input, SegmentedControl } from "@/components/ui";
+import type { SegmentedOption } from "@/components/ui";
 import {
   Plus, Search, X, ArrowUpRight, ArrowDownRight,
   Download, Trash2, CheckSquare,
@@ -23,6 +24,14 @@ import { SkeletonTable } from "@/components/SkeletonLoader";
 
 const SKIP_CATS = new Set(["Transfer", "Credit Card Payment"]);
 const PAYMENT_METHODS = ["Cash", "Debit Card", "UPI", "Self Transfer"];
+const TYPE_OPTIONS: SegmentedOption<"all" | "income" | "expense" | "transfer">[] = [
+  { value: "all", label: "All" },
+  { value: "income", label: "Income" },
+  { value: "expense", label: "Expense" },
+  { value: "transfer", label: "Transfer" },
+];
+const FILTER_SELECT =
+  "h-9 shrink-0 rounded-full border-0 bg-muted/70 pl-3.5 text-[13px] font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 md:h-8 md:text-xs";
 
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
@@ -217,19 +226,19 @@ export default function TransactionsPage() {
             {currentCycle?.label} · {stats.count} transactions
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 text-xs">
-            <Download className="w-3.5 h-3.5" /> Export
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 md:text-xs">
+            <Download className="w-3.5 h-3.5" /> <span className="max-sm:sr-only">Export</span>
           </Button>
           <Button
             variant={selectionMode ? "default" : "outline"}
             size="sm"
             onClick={() => { setSelectionMode(!selectionMode); setSelectedIds(new Set()); }}
-            className="gap-1.5 text-xs"
+            className="gap-1.5 md:text-xs"
           >
             <CheckSquare className="w-3.5 h-3.5" /> {selectionMode ? "Cancel" : "Select"}
           </Button>
-          <Button onClick={() => { setEditTxn(null); setShowAdd(true); }} className="gap-2">
+          <Button onClick={() => { setEditTxn(null); setShowAdd(true); }} className="ml-auto gap-2 sm:ml-0">
             <Plus className="w-4 h-4" /> Add Transaction
           </Button>
         </div>
@@ -237,7 +246,7 @@ export default function TransactionsPage() {
 
       {/* Bulk Actions Bar */}
       {selectionMode && selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-brand/5 border border-brand/20">
+        <div className="flex items-center gap-3 rounded-2xl border border-brand/20 bg-brand/5 px-4 py-2.5">
           <span className="text-sm font-medium text-brand">{selectedIds.size} selected</span>
           <div className="flex-1" />
           <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 text-xs">
@@ -255,32 +264,32 @@ export default function TransactionsPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <ArrowUpRight className="w-3.5 h-3.5 text-success" />
-              <span className="text-[11px] font-medium text-muted-foreground uppercase">Income</span>
+              <span className="text-footnote font-medium text-muted-foreground md:text-xs">Income</span>
             </div>
-            <p className="text-lg font-bold text-success">{fmt(stats.income)}</p>
+            <p className="font-rounded text-lg font-bold tabular-nums text-success">{fmt(stats.income)}</p>
           </CardContent>
         </Card>
         <Card className="hover:border-danger/30">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <ArrowDownRight className="w-3.5 h-3.5 text-danger" />
-              <span className="text-[11px] font-medium text-muted-foreground uppercase">Expenses</span>
+              <span className="text-footnote font-medium text-muted-foreground md:text-xs">Expenses</span>
             </div>
-            <p className="text-lg font-bold text-danger">{fmt(stats.expense)}</p>
+            <p className="font-rounded text-lg font-bold tabular-nums text-danger">{fmt(stats.expense)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] font-medium text-muted-foreground uppercase">Net</span>
+              <span className="text-footnote font-medium text-muted-foreground md:text-xs">Net</span>
             </div>
-            <p className={cn("text-lg font-bold", stats.net >= 0 ? "text-success" : "text-danger")}>{fmt(Math.abs(stats.net))}</p>
+            <p className={cn("font-rounded text-lg font-bold tabular-nums", stats.net >= 0 ? "text-success" : "text-danger")}>{fmt(Math.abs(stats.net))}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] font-medium text-muted-foreground uppercase">Top Category</span>
+              <span className="text-footnote font-medium text-muted-foreground md:text-xs">Top Category</span>
             </div>
             <p className="text-sm font-bold text-foreground truncate">{stats.topCategory}</p>
           </CardContent>
@@ -288,16 +297,18 @@ export default function TransactionsPage() {
       </div>
 
       {/* Cycle Selector */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 scrollbar-none sm:-mx-6 sm:px-6 md:mx-0 md:px-0">
         {recentCycles.map((c, i) => (
           <button
             key={c.cycleKey}
+            type="button"
+            aria-pressed={selectedCycle === i}
             onClick={() => setSelectedCycle(i)}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all border",
+              "shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors md:text-xs",
               selectedCycle === i
-                ? "bg-brand/10 text-brand border-brand/30"
-                : "bg-transparent text-muted-foreground border-border hover:bg-muted"
+                ? "bg-brand text-white"
+                : "bg-card text-muted-foreground shadow-elev-1 hover:text-foreground"
             )}
           >
             {c.label}
@@ -307,41 +318,40 @@ export default function TransactionsPage() {
 
       {/* Filter Bar */}
       <Card className="border-border/50">
-        <CardContent className="p-3">
-          <div className="flex flex-wrap items-center gap-2">
+        <CardContent className="space-y-2.5 p-3">
+          <div className="flex flex-col gap-2.5 md:flex-row md:items-center">
             {/* Search */}
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative md:min-w-[200px] md:flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
-                type="text"
+                type="search"
+                enterKeyHint="search"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                placeholder="Search transactions..."
-                className="pl-9 h-8 text-sm"
+                placeholder="Search transactions"
+                aria-label="Search transactions"
+                className="pl-9 md:h-8"
               />
             </div>
 
             {/* Type Filter */}
-            <div className="flex rounded-lg border border-border overflow-hidden">
-              {(["all", "income", "expense", "transfer"] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setFilterType(type)}
-                  className={cn(
-                    "px-2.5 py-1.5 text-[11px] font-medium capitalize transition-colors",
-                    filterType === type ? "bg-brand text-white" : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              aria-label="Transaction type"
+              size="sm"
+              value={filterType}
+              onChange={setFilterType}
+              options={TYPE_OPTIONS}
+              className="md:w-auto"
+            />
+          </div>
 
+          <div className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 scrollbar-none md:mx-0 md:flex-wrap md:px-0">
             {/* Category Filter */}
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="h-8 px-2 rounded-lg text-xs border border-border bg-card text-foreground focus:ring-2 focus:ring-ring"
+              aria-label="Filter by category"
+              className={FILTER_SELECT}
             >
               <option value="">All Categories</option>
               {categories.map((c) => (
@@ -353,7 +363,8 @@ export default function TransactionsPage() {
             <select
               value={filterPayment}
               onChange={(e) => setFilterPayment(e.target.value)}
-              className="h-8 px-2 rounded-lg text-xs border border-border bg-card text-foreground focus:ring-2 focus:ring-ring"
+              aria-label="Filter by payment method"
+              className={FILTER_SELECT}
             >
               <option value="">All Methods</option>
               {PAYMENT_METHODS.map((m) => (
@@ -365,7 +376,8 @@ export default function TransactionsPage() {
             <select
               value={filterAccount}
               onChange={(e) => setFilterAccount(e.target.value)}
-              className="h-8 px-2 rounded-lg text-xs border border-border bg-card text-foreground focus:ring-2 focus:ring-ring"
+              aria-label="Filter by account"
+              className={FILTER_SELECT}
             >
               <option value="">All Accounts</option>
               {accounts.filter((a) => a.type !== "credit").map((a) => (
@@ -374,14 +386,15 @@ export default function TransactionsPage() {
             </select>
 
             {/* Sort */}
-            <div className="flex items-center gap-1 ml-auto">
-              <span className="text-[10px] text-muted-foreground">Sort:</span>
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <span className="text-[11px] text-muted-foreground">Sort:</span>
               {(["date", "amount", "category"] as const).map((col) => (
                 <button
                   key={col}
+                  type="button"
                   onClick={() => toggleSort(col)}
                   className={cn(
-                    "px-2 py-1 rounded text-[11px] font-medium capitalize transition-colors",
+                    "whitespace-nowrap rounded-full px-2.5 py-1.5 text-[13px] font-medium capitalize transition-colors md:py-1 md:text-[11px]",
                     sortBy === col ? "bg-brand/10 text-brand" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -437,6 +450,7 @@ export default function TransactionsPage() {
             selectedIds={selectedIds}
             onToggleSelect={handleToggleSelect}
             onToggleSelectAll={handleToggleSelectAll}
+            groupByDate={sortBy === "date"}
           />
         </CardContent>
       </Card>
