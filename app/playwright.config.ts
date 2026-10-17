@@ -28,6 +28,7 @@ export default defineConfig({
     { name: "firefox", use: { ...devices["Desktop Firefox"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
     { name: "mobile-chrome", use: { ...devices["Pixel 7"] } },
+    { name: "iphone", use: { ...devices["iPhone 15 Pro"] } },
   ],
 
   webServer: process.env.PLAYWRIGHT_BASE_URL
