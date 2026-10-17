@@ -3,164 +3,73 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { cn } from "@/lib/utils";
+import { LIQUID_SPRING } from "@/lib/motion";
+import { NAV_SECTIONS, findActiveNavPath, type NavItem } from "@/components/nav/nav-config";
 import {
-  Home,
-  Landmark,
-  LayoutDashboard,
-  ArrowUpDown,
-  ArrowLeftRight,
-  CalendarClock,
-  Handshake,
-  PieChart,
-  Tags,
-  BarChart3,
-  CreditCard,
-  FileText,
-  Gift,
-  Calculator,
-  Lightbulb,
-  TrendingUp,
-  TrendingDown,
-  Repeat,
-  Target,
-  LineChart,
-  Gem,
-  CalendarDays,
-  Calendar,
-  Heart,
   Settings,
   Sun,
   Moon,
+  Monitor,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  X,
   ChevronRight,
-  Split,
 } from "lucide-react";
 
-interface NavItem {
-  label: string;
-  path: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
+const SETTINGS_ITEM: NavItem = { label: "Settings", path: "/settings", icon: Settings };
 
-interface NavSection {
-  id: string;
-  label?: string;
-  icon?: React.ComponentType<{ className?: string }>;
-  items: NavItem[];
-}
-
-const sections: NavSection[] = [
-  {
-    id: "home",
-    items: [{ label: "Home", path: "/", icon: Home }],
-  },
-  {
-    id: "money",
-    label: "Money",
-    icon: Landmark,
-    items: [
-      { label: "Accounts", path: "/money/accounts", icon: Landmark },
-      { label: "Cash Flow", path: "/money/cash-flow", icon: ArrowUpDown },
-      { label: "Transactions", path: "/money/transactions", icon: ArrowLeftRight },
-      { label: "Recurring", path: "/money/recurring", icon: Repeat },
-      { label: "Bills & Subs", path: "/money/bills", icon: CalendarClock },
-      { label: "Debt Strategy", path: "/money/debt-strategy", icon: TrendingDown },
-      { label: "Lending", path: "/money/lending", icon: Handshake },
-      { label: "Splits", path: "/money/splits", icon: Split },
-    ],
-  },
-  {
-    id: "spending",
-    label: "Spending",
-    icon: PieChart,
-    items: [
-      { label: "Budgets", path: "/spending/budgets", icon: PieChart },
-      { label: "Categories", path: "/spending/categories", icon: Tags },
-      { label: "Analytics", path: "/spending/analytics", icon: BarChart3 },
-    ],
-  },
-  {
-    id: "credit",
-    label: "Credit",
-    icon: CreditCard,
-    items: [
-      { label: "Overview", path: "/credit", icon: CreditCard },
-      { label: "Transactions", path: "/credit/transactions", icon: ArrowLeftRight },
-      { label: "Statements", path: "/credit/statements", icon: FileText },
-      { label: "Rewards", path: "/credit/rewards", icon: Gift },
-      { label: "EMIs", path: "/credit/emis", icon: Calculator },
-      { label: "Insights", path: "/credit/insights", icon: Lightbulb },
-    ],
-  },
-  {
-    id: "investments",
-    label: "Investments",
-    icon: TrendingUp,
-    items: [
-      { label: "Overview", path: "/investments", icon: LayoutDashboard },
-      { label: "Mutual Funds", path: "/investments/mutual-funds", icon: TrendingUp },
-      { label: "Gold", path: "/investments/gold", icon: Gem },
-      { label: "Other", path: "/investments/other", icon: Landmark },
-      { label: "Goals", path: "/investments/goals", icon: Target },
-      { label: "Net Worth", path: "/investments/net-worth", icon: LineChart },
-    ],
-  },
-  {
-    id: "reports",
-    label: "Reports",
-    icon: CalendarDays,
-    items: [
-      { label: "Monthly", path: "/reports/monthly", icon: CalendarDays },
-      { label: "Yearly", path: "/reports/yearly", icon: Calendar },
-      { label: "Health", path: "/reports/health", icon: Heart },
-    ],
-  },
-  {
-    id: "calculators",
-    items: [{ label: "Calculators", path: "/calculators", icon: Calculator }],
-  },
-];
+const THEME_META = {
+  system: { label: "Auto", icon: Monitor, next: "light" },
+  light: { label: "Light", icon: Sun, next: "dark" },
+  dark: { label: "Dark", icon: Moon, next: "system" },
+} as const;
 
 interface SidebarProps {
-  mobileMenuOpen: boolean;
-  setMobileMenuOpen: (v: boolean) => void;
-  onCollapsedChange?: (v: boolean) => void;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 }
 
-export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen, onCollapsedChange }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+function SidebarLink({ item, active, collapsed }: { item: NavItem; active: boolean; collapsed: boolean }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <Link
+      href={item.path}
+      title={collapsed ? item.label : undefined}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-colors",
+        collapsed && "justify-center px-0",
+        active ? "text-brand" : "text-foreground/75 hover:bg-foreground/[0.05] hover:text-foreground"
+      )}
+    >
+      {active && (
+        <motion.span
+          layoutId="sidebar-pill"
+          className="absolute inset-0 rounded-xl bg-brand/12"
+          transition={reduceMotion ? { duration: 0 } : { type: "spring", ...LIQUID_SPRING }}
+        />
+      )}
+      <item.icon className="relative size-[18px] shrink-0" />
+      {!collapsed && <span className="relative truncate">{item.label}</span>}
+    </Link>
+  );
+}
+
+/** Desktop navigation: a floating Liquid Glass panel (mobile uses the tab bar + More sheet). */
+export default function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const { resolvedTheme, setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { signOut } = useAuth();
   const pathname = usePathname();
-  const isDark = resolvedTheme === "dark";
 
-  const handleSetCollapsed = (val: boolean) => {
-    setCollapsed(val);
-    onCollapsedChange?.(val);
-  };
-
-  const handleNavClick = () => {
-    if (mobileMenuOpen) setMobileMenuOpen(false);
-  };
-
-  const toggleTheme = () => setTheme(isDark ? "light" : "dark");
-
-  // Determine which section is active based on pathname
-  const getActiveSection = () => {
-    if (pathname === "/") return "home";
-    const firstSegment = pathname.split("/").filter(Boolean)[0];
-    return sections.find((s) => s.items.some((i) => i.path.startsWith(`/${firstSegment}`)))?.id || "";
-  };
-
-  const activeSection = getActiveSection();
+  const activePath = findActiveNavPath(pathname, [SETTINGS_ITEM.path]);
+  const activeSection = NAV_SECTIONS.find((s) => s.items.some((i) => i.path === activePath))?.id ?? "";
+  const themeMeta = THEME_META[theme];
+  const ThemeIcon = themeMeta.icon;
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) => {
@@ -174,256 +83,146 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen, onCollapsed
     });
   };
 
-  const isSectionExpanded = (sectionId: string) => {
-    return expandedSections.has(sectionId) || activeSection === sectionId;
-  };
+  const isSectionExpanded = (sectionId: string) => expandedSections.has(sectionId) || activeSection === sectionId;
+
+  const actionClass = cn(
+    "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-colors",
+    collapsed && "justify-center px-0"
+  );
 
   return (
-    <>
-      {/* Mobile overlay */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+    <aside
+      aria-label="Main navigation"
+      className="glass-chrome fixed bottom-3 left-[max(12px,var(--safe-left))] top-3 z-50 hidden flex-col overflow-hidden rounded-[22px] transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:flex"
+      style={{ width: "var(--sidebar-w)" }}
+    >
+      {/* Logo */}
+      <div className={cn("flex h-14 shrink-0 items-center px-3", collapsed && "justify-center px-0")}>
+        <Link href="/" className="flex min-w-0 items-center gap-2.5">
+          <span className="grid size-8 shrink-0 place-items-center rounded-[10px] brand-gradient shadow-elev-2">
+            <svg width="16" height="16" viewBox="0 0 512 512" fill="none" aria-hidden>
+              <path d="M128 160 L192 352 L256 220 L320 352 L384 160" stroke="white" strokeWidth="42" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <circle cx="256" cy="380" r="20" fill="#f59e0b" />
+            </svg>
+          </span>
+          {!collapsed && (
+            <span className="truncate text-[15px] font-bold tracking-tight text-foreground">
+              Wealth<span className="brand-gradient-text">Flow</span>
+            </span>
+          )}
+        </Link>
+      </div>
 
-      <motion.aside
-        animate={{ width: collapsed ? 56 : 220 }}
-        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-        role="navigation"
-        aria-label="Main navigation"
-        className={cn(
-          "fixed top-0 left-0 h-screen z-50 flex flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-in-out",
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        )}
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-between px-3 h-14 border-b border-sidebar-border flex-shrink-0">
-          <Link href="/" onClick={handleNavClick} className="flex items-center gap-2.5">
-            <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg brand-gradient shadow-md premium-glow">
-              <svg width="16" height="16" viewBox="0 0 512 512" fill="none">
-                <path d="M128 160 L192 352 L256 220 L320 352 L384 160" stroke="white" strokeWidth="42" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                <circle cx="256" cy="380" r="20" fill="#f59e0b" />
-              </svg>
-            </div>
-            <AnimatePresence>
-              {!collapsed && (
-                <motion.span
-                  initial={{ opacity: 0, x: -4 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -4 }}
-                  transition={{ duration: 0.15 }}
-                  className="font-bold text-[15px] tracking-tight text-foreground"
-                >
-                  Wealth<span className="brand-gradient-text">Flow</span>
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </Link>
-          <button
-            onClick={() => setMobileMenuOpen(false)}
-            aria-label="Close navigation menu"
-            className="md:hidden p-1 text-muted-foreground hover:text-foreground rounded-md"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-2 pt-3 overflow-y-auto overflow-x-hidden">
-          {sections.map((section) => {
-            if (!section.label) {
-              // Label-less sections render as a single flat link, not a collapsible group
-              const item = section.items[0];
-              const isActive =
-                item.path === "/"
-                  ? pathname === "/"
-                  : pathname === item.path || pathname.startsWith(`${item.path}/`);
-              return (
-                <div key={section.id} className="mb-2">
-                  <Link
-                    href={item.path}
-                    onClick={handleNavClick}
-                    className={cn(
-                      "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                      collapsed && "justify-center px-2",
-                      isActive
-                        ? "bg-brand/10 text-brand"
-                        : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className={cn("h-[18px] w-[18px] flex-shrink-0", isActive && "text-brand")} />
-                    {!collapsed && <span>{item.label}</span>}
-                    {isActive && (
-                      <motion.div
-                        layoutId="sidebar-active"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-brand"
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      />
-                    )}
-                  </Link>
-                </div>
-              );
-            }
-
-            const isExpanded = isSectionExpanded(section.id);
-            const isSectionActive = activeSection === section.id;
-            const SectionIcon = section.icon!;
-
+      {/* Navigation */}
+      <nav className="scrollbar-none flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
+        {NAV_SECTIONS.map((section) => {
+          if (!section.label) {
+            const item = section.items[0];
             return (
               <div key={section.id} className="mb-1">
-                {/* Section header */}
-                {collapsed ? (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-label={section.label}
-                    className={cn(
-                      "flex items-center justify-center rounded-md px-2 py-2 mb-0.5 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      isSectionActive
-                        ? "text-brand"
-                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
-                    )}
-                    title={section.label}
-                    onClick={() => handleSetCollapsed(false)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleSetCollapsed(false);
-                      }
-                    }}
-                  >
-                    <SectionIcon className="h-[18px] w-[18px]" />
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => toggleSection(section.id)}
-                    className={cn(
-                      "flex items-center gap-2 w-full rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
-                      isSectionActive
-                        ? "text-brand"
-                        : "text-section-header hover:text-foreground"
-                    )}
-                  >
-                    <ChevronRight
-                      className={cn(
-                        "h-3 w-3 transition-transform duration-200",
-                        isExpanded && "rotate-90"
-                      )}
-                    />
-                    <span>{section.label}</span>
-                  </button>
-                )}
-
-                {/* Section items */}
-                {!collapsed && (
-                  <AnimatePresence initial={false}>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                        className="overflow-hidden"
-                      >
-                        <div className="flex flex-col gap-0.5 pl-2 mt-0.5">
-                          {section.items.map((item) => {
-                            const isActive = pathname === item.path || (item.path !== "/" && pathname.startsWith(item.path + "/"));
-
-                            return (
-                              <Link
-                                key={item.path}
-                                href={item.path}
-                                onClick={handleNavClick}
-                                className={cn(
-                                  "relative flex items-center gap-3 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                                  isActive
-                                    ? "bg-brand/10 text-brand"
-                                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-                                )}
-                              >
-                                <item.icon className={cn("h-4 w-4 flex-shrink-0", isActive && "text-brand")} />
-                                <span>{item.label}</span>
-                                {isActive && (
-                                  <motion.div
-                                    layoutId="sidebar-active"
-                                    className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-r-full bg-brand"
-                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                  />
-                                )}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                )}
+                <SidebarLink item={item} active={item.path === activePath} collapsed={collapsed} />
               </div>
             );
-          })}
-        </nav>
+          }
 
-        {/* Bottom Actions */}
-        <div className="p-2 border-t border-sidebar-border space-y-0.5 flex-shrink-0">
-          <Link
-            href="/settings"
-            onClick={handleNavClick}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              collapsed && "justify-center px-2",
-              pathname === "/settings"
-                ? "bg-brand/10 text-brand"
-                : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-            )}
-          >
-            <Settings className="h-[18px] w-[18px]" />
-            {!collapsed && <span>Settings</span>}
-          </Link>
+          const isExpanded = isSectionExpanded(section.id);
+          const isSectionActive = activeSection === section.id;
+          const SectionIcon = section.icon!;
 
-          <button
-            onClick={toggleTheme}
-            aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium w-full transition-colors text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
-              collapsed && "justify-center px-2"
-            )}
-          >
-            {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-            {!collapsed && <span>{isDark ? "Light" : "Dark"}</span>}
-          </button>
+          if (collapsed) {
+            return (
+              <button
+                key={section.id}
+                type="button"
+                title={section.label}
+                aria-label={`Expand ${section.label}`}
+                onClick={() => onCollapsedChange(false)}
+                className={cn(
+                  "mb-1 flex w-full cursor-pointer items-center justify-center rounded-xl py-2 transition-colors",
+                  isSectionActive ? "text-brand" : "text-foreground/70 hover:bg-foreground/[0.05] hover:text-foreground"
+                )}
+              >
+                <SectionIcon className="size-[18px]" />
+              </button>
+            );
+          }
 
-          <button
-            onClick={() => signOut()}
-            aria-label="Sign out"
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium w-full transition-colors text-danger hover:bg-danger/10",
-              collapsed && "justify-center px-2"
-            )}
-          >
-            <LogOut className="h-[18px] w-[18px]" />
-            {!collapsed && <span>Logout</span>}
-          </button>
+          return (
+            <div key={section.id} className="mb-1">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                aria-expanded={isExpanded}
+                className={cn(
+                  "flex w-full cursor-pointer items-center gap-1.5 rounded-lg px-3 pb-1 pt-3 text-[11px] font-semibold transition-colors",
+                  isSectionActive ? "text-brand" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span>{section.label}</span>
+                <ChevronRight
+                  className={cn("size-3 transition-transform duration-200", isExpanded && "rotate-90")}
+                  strokeWidth={2.5}
+                />
+              </button>
 
-          <button
-            onClick={() => handleSetCollapsed(!collapsed)}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={cn(
-              "hidden md:flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium w-full transition-colors text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
-              collapsed && "justify-center px-2"
-            )}
-          >
-            {collapsed ? <PanelLeftOpen className="h-[18px] w-[18px]" /> : <PanelLeftClose className="h-[18px] w-[18px]" />}
-            {!collapsed && <span>Collapse</span>}
-          </button>
-        </div>
-      </motion.aside>
-    </>
+              <AnimatePresence initial={false}>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex flex-col gap-0.5 pt-0.5">
+                      {section.items.map((item) => (
+                        <SidebarLink key={item.path} item={item} active={item.path === activePath} collapsed={false} />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Bottom actions */}
+      <div className="shrink-0 space-y-0.5 border-t border-border/50 p-2">
+        <SidebarLink item={SETTINGS_ITEM} active={activePath === SETTINGS_ITEM.path} collapsed={collapsed} />
+
+        <button
+          type="button"
+          onClick={() => setTheme(themeMeta.next)}
+          title={collapsed ? `Appearance: ${themeMeta.label}` : undefined}
+          aria-label={`Appearance: ${themeMeta.label}. Switch appearance`}
+          className={cn(actionClass, "text-foreground/75 hover:bg-foreground/[0.05] hover:text-foreground")}
+        >
+          <ThemeIcon className="size-[18px] shrink-0" />
+          {!collapsed && <span>Appearance: {themeMeta.label}</span>}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => signOut()}
+          title={collapsed ? "Logout" : undefined}
+          aria-label="Sign out"
+          className={cn(actionClass, "text-danger hover:bg-danger/10")}
+        >
+          <LogOut className="size-[18px] shrink-0" />
+          {!collapsed && <span>Logout</span>}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onCollapsedChange(!collapsed)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={cn(actionClass, "text-foreground/60 hover:bg-foreground/[0.05] hover:text-foreground")}
+        >
+          {collapsed ? <PanelLeftOpen className="size-[18px] shrink-0" /> : <PanelLeftClose className="size-[18px] shrink-0" />}
+          {!collapsed && <span>Collapse</span>}
+        </button>
+      </div>
+    </aside>
   );
 }

@@ -92,10 +92,22 @@ const NAV_SECTIONS = [
   },
 ];
 
+export const COMMAND_PALETTE_OPEN_EVENT = "command-palette-open";
+
+export function openCommandPalette() {
+  document.dispatchEvent(new CustomEvent(COMMAND_PALETTE_OPEN_EVENT));
+}
+
 export default function CommandPalette() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const { transactions, accounts: _accounts, categories: _categories } = useData();
+
+  useEffect(() => {
+    const handleOpen = () => setOpen(true);
+    document.addEventListener(COMMAND_PALETTE_OPEN_EVENT, handleOpen);
+    return () => document.removeEventListener(COMMAND_PALETTE_OPEN_EVENT, handleOpen);
+  }, []);
 
   useEffect(() => {
     let gPending = false;
@@ -180,21 +192,36 @@ export default function CommandPalette() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[20vh] bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg mx-4">
-        <Command className="rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
-          <div className="flex items-center gap-2 px-4 border-b border-border">
-            <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+    <div
+      className="fixed inset-0 z-[200] flex items-start justify-center bg-black/35 px-3 pt-[calc(var(--safe-top)_+_12px)] md:pt-[18vh]"
+      onClick={() => setOpen(false)}
+    >
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg animate-scale-in">
+        <Command
+          className="glass-sheet overflow-hidden rounded-[22px]"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setOpen(false);
+          }}
+        >
+          <div className="flex items-center gap-2 border-b border-border/60 px-4">
+            <Search className="size-[18px] flex-shrink-0 text-muted-foreground" />
             <Command.Input
               placeholder="Search pages, transactions..."
-              className="flex-1 h-12 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="h-12 flex-1 bg-transparent text-body text-foreground placeholder:text-muted-foreground focus:outline-none md:text-sm"
               autoFocus
             />
-            <kbd className="pointer-events-none inline-flex h-5 select-none items-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+            <kbd className="pointer-events-none hidden h-5 select-none items-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground md:inline-flex">
               ESC
             </kbd>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="-mr-1 px-1 text-body text-brand md:hidden"
+            >
+              Cancel
+            </button>
           </div>
-          <Command.List className="max-h-[320px] overflow-y-auto p-2">
+          <Command.List className="max-h-[min(60dvh,420px)] overflow-y-auto overscroll-contain p-2">
             <Command.Empty className="py-6 text-center text-sm text-muted-foreground">No results found.</Command.Empty>
 
             {NAV_SECTIONS.map((section) => (
@@ -204,7 +231,7 @@ export default function CommandPalette() {
                     key={item.href}
                     value={`${section.label} ${item.label}`}
                     onSelect={() => navigate(item.href)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-foreground cursor-pointer data-[selected=true]:bg-muted transition-colors"
+                    className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-subhead normal-case text-foreground transition-colors data-[selected=true]:bg-foreground/[0.06] md:py-2.5 md:text-sm"
                   >
                     <item.icon className="w-4 h-4 text-muted-foreground" />
                     {item.label}
@@ -219,11 +246,11 @@ export default function CommandPalette() {
                   <Command.Item
                     key={t.id}
                     value={t.label}
-                    onSelect={() => navigate("/transactions")}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-foreground cursor-pointer data-[selected=true]:bg-muted transition-colors"
+                    onSelect={() => navigate("/money/transactions")}
+                    className="flex cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-subhead normal-case text-foreground transition-colors data-[selected=true]:bg-foreground/[0.06] md:py-2.5 md:text-sm"
                   >
                     <span>{t.label}</span>
-                    <span className="text-xs text-muted-foreground">{t.sublabel}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">{t.sublabel}</span>
                   </Command.Item>
                 ))}
               </Command.Group>

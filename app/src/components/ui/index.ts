@@ -15,3 +15,8 @@ export { SectionTabs } from "./SectionTabs";
 export type { SectionTab } from "./SectionTabs";
 export { EmptyState } from "./EmptyState";
 export { Breadcrumb } from "./Breadcrumb";
+export { Sheet, SheetClose } from "./Sheet";
+export type { SheetProps } from "./Sheet";
+export { ListGroup, ListRow } from "./List";
+export { SegmentedControl } from "./SegmentedControl";
+export type { SegmentedOption } from "./SegmentedControl";

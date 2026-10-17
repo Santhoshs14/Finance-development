@@ -87,12 +87,12 @@ export default function NotificationCenter() {
       {/* Bell button */}
       <button
         onClick={() => setOpen(!open)}
-        className="relative p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className="relative grid size-11 cursor-pointer place-items-center rounded-full text-foreground/80 transition-colors hover:bg-foreground/[0.06] hover:text-foreground md:size-10"
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-danger text-white text-[10px] font-bold px-1">
+          <span className="absolute right-1 top-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-danger text-white text-[10px] font-bold px-1 tabular-nums md:right-0.5 md:top-0.5">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -106,7 +106,7 @@ export default function NotificationCenter() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-80 sm:w-96 max-h-[70vh] overflow-hidden rounded-xl border border-border bg-card shadow-xl z-50 flex flex-col"
+            className="glass-sheet fixed inset-x-3 top-[calc(var(--safe-top)_+_52px)] z-50 flex max-h-[min(70dvh,560px)] origin-top-right flex-col overflow-hidden rounded-[22px] md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:w-96"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">

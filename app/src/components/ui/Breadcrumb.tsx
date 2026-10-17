@@ -4,58 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CALCULATORS } from "@/components/calculators/registry";
-
-const sectionLabels: Record<string, string> = {
-  money: "Money",
-  spending: "Spending",
-  credit: "Credit",
-  wealth: "Wealth",
-  investments: "Investments",
-  reports: "Reports",
-  calculators: "Calculators",
-  settings: "Settings",
-};
-
-// Section roots that have no index page redirect to their default child page.
-const sectionRoots: Record<string, string> = {
-  money: "/money/accounts",
-  spending: "/spending/budgets",
-  credit: "/credit",
-  wealth: "/investments",
-  investments: "/investments",
-  reports: "/reports",
-  calculators: "/calculators",
-  settings: "/settings",
-};
-
-const pageLabels: Record<string, string> = {
-  accounts: "Accounts",
-  "cash-flow": "Cash Flow",
-  transactions: "Transactions",
-  bills: "Bills & Subscriptions",
-  lending: "Lending",
-  budgets: "Budgets",
-  categories: "Categories",
-  analytics: "Analytics",
-  statements: "Statements",
-  rewards: "Rewards",
-  emis: "EMIs",
-  insights: "Insights",
-  portfolio: "Portfolio",
-  sips: "SIPs",
-  goals: "Goals",
-  "net-worth": "Net Worth",
-  monthly: "Monthly Review",
-  yearly: "Yearly Review",
-  health: "Financial Health",
-  "debt-strategy": "Debt Strategy",
-  splits: "Splits",
-  recurring: "Recurring",
-  gold: "Gold",
-  "mutual-funds": "Mutual Funds",
-  ...Object.fromEntries(CALCULATORS.map((calc) => [calc.slug, calc.title])),
-};
+import { PAGE_LABELS, SECTION_LABELS, SECTION_ROOTS } from "@/components/nav/nav-config";
 
 export function Breadcrumb({ className }: { className?: string }) {
   const pathname = usePathname();
@@ -66,15 +15,15 @@ export function Breadcrumb({ className }: { className?: string }) {
   const section = segments[0];
   const page = segments[1];
 
-  const sectionLabel = sectionLabels[section];
-  const pageLabel = page ? pageLabels[page] : undefined;
+  const sectionLabel = SECTION_LABELS[section];
+  const pageLabel = page ? PAGE_LABELS[page] : undefined;
 
   if (!sectionLabel) return null;
 
   return (
     <nav className={cn("flex items-center gap-1 text-sm", className)}>
       <Link
-        href={sectionRoots[section] ?? `/${section}`}
+        href={SECTION_ROOTS[section] ?? `/${section}`}
         className="text-muted-foreground hover:text-foreground transition-colors"
       >
         {sectionLabel}

@@ -44,26 +44,26 @@ export default function InstallPrompt() {
   if (dismissed || !deferredPrompt) return null;
 
   return (
-    <div className="fixed bottom-16 left-4 right-4 md:bottom-4 md:left-auto md:right-4 md:w-80 z-50 animate-in slide-in-from-bottom-4">
-      <div className="rounded-2xl border border-border bg-background shadow-lg p-4 flex items-center gap-3">
+    <div className="fixed inset-x-4 bottom-[calc(var(--safe-bottom)_+_var(--tabbar-h)_+_28px)] z-50 animate-slide-up md:inset-x-auto md:bottom-4 md:right-4 md:w-80">
+      <div className="glass-sheet flex items-center gap-3 rounded-3xl p-4">
         <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
           <Download className="w-5 h-5 text-brand" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground">Install WealthFlow</p>
+          <p className="text-sm font-semibold text-foreground">Install WealthFlow</p>
           <p className="text-xs text-muted-foreground">Get faster access from your home screen</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={handleInstall}
-            className="px-3 py-1.5 rounded-lg bg-brand text-white text-xs font-medium hover:bg-brand/90 transition-colors"
+            className="h-8 cursor-pointer rounded-full bg-brand px-3.5 text-xs font-semibold text-white transition-colors hover:bg-brand/90"
           >
             Install
           </button>
           <button
             onClick={handleDismiss}
             aria-label="Dismiss install prompt"
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="grid size-8 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
